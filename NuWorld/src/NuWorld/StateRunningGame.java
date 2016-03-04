@@ -147,7 +147,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         playerNode.addControl(playerControl);
         terrainNode.attachChild(playerNode);
         bulletAppState.getPhysicsSpace().add(playerControl);
-        bulletAppState.setDebugEnabled(false);
+        bulletAppState.setDebugEnabled(true);
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * cubesSettings.getBlockSize(),0));
         //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,0.5f * cubesSettings.getBlockSize(),0));
         playerControl.warp(new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize()));
@@ -275,11 +275,15 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
             public void onSpatialUpdated(BlockChunkControl blockChunk){
                 Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
                 RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
-                if(rigidBodyControl == null){
-                    rigidBodyControl = new RigidBodyControl(0);
-                    optimizedGeometry.addControl(rigidBodyControl);
-                    bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+                if (rigidBodyControl != null) {
+                    optimizedGeometry.removeControl(rigidBodyControl);
+                    bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
                 }
+                //if(rigidBodyControl == null){
+                rigidBodyControl = new RigidBodyControl(0);
+                optimizedGeometry.addControl(rigidBodyControl);
+                bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+                //}
                 rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
                 //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
                 //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
