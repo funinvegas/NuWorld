@@ -106,7 +106,6 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         settings.setTitle("NuWorld");
         settings.setFrameRate(60);
         this.invertYAxis = false;
-
         SetupMessages.RegisterAllMessageTypes();
 
     }

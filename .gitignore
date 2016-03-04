@@ -15,7 +15,7 @@ hs_err_pid*
 
 **/dist/
 jMonkeyEngine-Console
-cubes
+jMonkeyEngine-cubes
 SceneEditor
 testbed
 Nifty*
