@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<nifty xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://nifty-gui.lessvoid.com/nifty-gui" xsi:schemaLocation="https://raw.githubusercontent.com/void256/nifty-gui/1.4/nifty-core/src/main/resources/nifty.xsd https://raw.githubusercontent.com/void256/nifty-gui/1.4/nifty-core/src/main/resources/nifty.xsd">
+    <useControls filename="nifty-default-controls.xml"/>
+    <useStyles filename="nifty-default-styles.xml"/>
+    <screen id="connectMenu">
+        <layer id="GLayer0" childLayout="center">
+            <panel id="GPanel1" childLayout="absolute" width="400px" x="184px" y="167px" style="nifty-panel-simple" height="269px">
+                <control name="label" id="GLabel1" width="199px" x="112px" y="28px" text="Server IP" height="50px" font="aurulent-sans-16.fnt"/>
+                <control name="textfield" id="serverIP" width="50%" x="115" y="67"/>
+                <control name="button" id="connectButton" childLayout="center" x="217" width="100px" y="167" label="Connect" height="46px"/>
+                <control name="button" id="cancelButton" childLayout="center" x="77" width="119px" y="171" label="Cancel" height="47px"/>
+            </panel>
+        </layer>
+    </screen>
+</nifty>

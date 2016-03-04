@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package mygame;
+package NuWorld;
 
 import com.jme3.app.Application;
 import com.jme3.app.state.AbstractAppState;
@@ -21,11 +21,11 @@ public class StateStartMenu extends AbstractAppState {
     
     NiftyJmeDisplay niftyDisplay;
     Nifty nifty;
-    Main app;
+    NuWorldMain app;
    
     @Override
     public void initialize(AppStateManager stateManager, Application ap) {
-        this.app = (Main)ap;
+        this.app = (NuWorldMain)ap;
         this.niftyDisplay = app.getNiftyDisplay();
         this.nifty = this.niftyDisplay.getNifty();
         nifty.gotoScreen("StartScreen");
@@ -49,13 +49,13 @@ public class StateStartMenu extends AbstractAppState {
     @NiftyEventSubscriber(id="newGame") 
     public void onStartClick(String id, NiftyMousePrimaryClickedEvent event) {
         System.out.println("element with id [" + id + "] clicked at [" + event.getMouseX() +                     ", " + event.getMouseY() + "]"); 
-        app.startNewGame();
+        app.startNewGame(this);
     }
 
     @NiftyEventSubscriber(id="joinGame") 
     public void onJoinClick(String id, NiftyMousePrimaryClickedEvent event) {
         System.out.println("element with id [" + id + "] clicked at [" + event.getMouseX() +                     ", " + event.getMouseY() + "]"); 
-        app.joinGame();
+        app.joinGame(this);
     }
     
 }

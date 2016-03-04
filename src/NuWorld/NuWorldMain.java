@@ -1,5 +1,6 @@
-package mygame;
+package NuWorld;
 
+import NuWorldServer.Messages.SetupMessages;
 import com.cubes.BlockChunkControl;
 import com.cubes.BlockChunkListener;
 import com.cubes.BlockNavigator;
@@ -29,6 +30,8 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.network.Client;
+import com.jme3.network.MessageListener;
 import com.jme3.niftygui.NiftyJmeDisplay;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
@@ -53,7 +56,7 @@ import strongdk.jme.appstate.console.ConsoleDefaultCommandsAppState;
  * @author BigScorch
  * implements ActionListener so it can listen to input events
  */
-public class Main extends SimpleApplication implements ScreenController, CommandListener  {
+public class NuWorldMain extends SimpleApplication implements ScreenController, CommandListener  {
     
     // State manager to handle transition from start screen to in-game and others in the future
     //private AppStateManager stateManager;
@@ -66,9 +69,11 @@ public class Main extends SimpleApplication implements ScreenController, Command
     
     boolean invertYAxis = false;
         
+    GameClient gameClient;
+    
     // Global starting point
     public static void main(String[] args) {
-        Main app = new Main();
+        NuWorldMain app = new NuWorldMain();
         app.start();
     }
     
@@ -93,7 +98,7 @@ public class Main extends SimpleApplication implements ScreenController, Command
     }
     
     // Constructor
-    Main() {
+    NuWorldMain() {
         // Set some defaults for the jMonkeyEngine settings dialog
         settings = new AppSettings(true);
         settings.setWidth(1280);
@@ -101,6 +106,9 @@ public class Main extends SimpleApplication implements ScreenController, Command
         settings.setTitle("NuWorld");
         settings.setFrameRate(60);
         this.invertYAxis = false;
+
+        SetupMessages.RegisterAllMessageTypes();
+
     }
     
     public Node getRootNode() {
@@ -152,6 +160,7 @@ public class Main extends SimpleApplication implements ScreenController, Command
         nifty = niftyDisplay.getNifty();
         nifty.fromXml("Interface/startMenu.xml", "start", this);
         nifty.addXml("Interface/inGameMenu.xml");
+        nifty.addXml("Interface/connectMenu.xml");
         nifty.gotoScreen("StartScreen");
         //Element niftyElement = nifty.getCurrentScreen().findElementByName("quitGame");
         //nifty.addXml("Interface/inventory.xml");
@@ -174,6 +183,8 @@ public class Main extends SimpleApplication implements ScreenController, Command
         console.appendConsole("You can change speed by using the command 'rotation [1-10]'");
         console.appendConsole("Example: rotation 5");
 
+        gameClient = new GameClient(console);
+
         // TODO how to draw text on the screen!
         //BitmapText bt = new BitmapText(assetManager.loadFont("Interface/Fonts/Default.fnt"));
         //bt.setColor(ColorRGBA.Black);
@@ -191,6 +202,16 @@ public class Main extends SimpleApplication implements ScreenController, Command
         initGUI();
         StateStartMenu startScreenState = new StateStartMenu();
         stateManager.attach(startScreenState);
+
+    Box b = new Box(1, 1, 1);
+        Geometry geom = new Geometry("Box", b);
+
+        Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        mat.setColor("Color", ColorRGBA.Blue);
+        geom.setMaterial(mat);
+
+        rootNode.attachChild(geom);
+    
     }
 
     public ChaseCamera getChaseCamera() {
@@ -216,12 +237,41 @@ public class Main extends SimpleApplication implements ScreenController, Command
         return this.niftyDisplay;
     }
     
-    public void startNewGame() {
+    public void startNewGame(AbstractAppState leavingState ) {
         StateRunningGame stateRunning = new StateRunningGame();
+        stateManager.detach(leavingState);
         stateManager.attach(stateRunning);
     }
     
-    public void joinGame() {
+    public void joinGame(AbstractAppState leavingState) {
+        StateConnecting stateConnecting = new StateConnecting();
+        stateManager.detach(leavingState);
+        stateManager.attach(stateConnecting);
         
+    }
+    String serverIP;
+    public void setServerConnection(String serverConnectionString) {
+        serverIP = serverConnectionString;
+        gameClient.connect(serverIP);
+    }
+    public void connectToServer() {
+        gameClient.start();
+    }
+    public void startRunning(AbstractAppState leavingState) {
+        StateRunningGame stateRunning = new StateRunningGame();
+        stateManager.detach(leavingState);
+        stateManager.attach(stateRunning);
+    }
+    
+    public void removeMessageListener(MessageListener<Client> clientListener) {
+        gameClient.removeMessageListener(clientListener);        
+    }
+    
+    public void addMessageListener(MessageListener<Client> clientListener) {
+        gameClient.addMessageListener(clientListener);
+    }
+
+    GameClient getGameClient() {
+        return this.gameClient;
     }
 }

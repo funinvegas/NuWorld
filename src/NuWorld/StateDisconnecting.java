@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package mygame;
+package NuWorld;
 
 import com.jme3.app.state.AbstractAppState;
 

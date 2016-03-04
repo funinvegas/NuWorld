@@ -2,14 +2,20 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package mygame;
+package NuWorld;
 
+import NuWorldServer.Messages.ClearBlock;
+import NuWorldServer.Messages.ResetChunk;
+import NuWorldServer.Messages.SetBlock;
+import NuWorldServer.Messages.SetPlayerLocation;
 import com.cubes.BlockChunkControl;
 import com.cubes.BlockChunkListener;
+import com.cubes.BlockManager;
 import com.cubes.BlockNavigator;
 import com.cubes.BlockTerrainControl;
 import com.cubes.CubesSettings;
 import com.cubes.Vector3Int;
+import com.cubes.network.BitInputStream;
 import com.jme3.app.Application;
 import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.AbstractAppState;
@@ -31,22 +37,29 @@ import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.network.Client;
+import com.jme3.network.Message;
+import com.jme3.network.MessageListener;
 import com.jme3.niftygui.NiftyJmeDisplay;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.system.AppSettings;
 import de.lessvoid.nifty.Nifty;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.concurrent.Callable;
 
 /**
  *
  * @author funin_000
  */
-public class StateRunningGame extends AbstractAppState implements ActionListener {
+public class StateRunningGame extends AbstractAppState implements ActionListener, MessageListener<Client> {
     NiftyJmeDisplay niftyDisplay;
     Nifty nifty;
-    Main app;
+    NuWorldMain app;
     
     // Physics Engine
     private BulletAppState bulletAppState;
@@ -81,7 +94,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     
     @Override
     public void initialize(AppStateManager stateManager, Application ap) {
-        this.app = (Main)ap;
+        this.app = (NuWorldMain)ap;
         this.cam = this.app.getChaseCamera();
         this.inputManager = app.getInputManager();
         bulletAppState = new BulletAppState();
@@ -90,6 +103,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         initBlockTerrain();
         initPlayer();
         initGui();
+        app.connectToServer();
+        app.addMessageListener(this);
         //cam.lookAtDirection(new Vector3f(1, 0, 1), Vector3f.UNIT_Y);
     }
     
@@ -121,6 +136,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     {
         super.cleanup();
         inputManager.removeListener(this);
+        app.removeMessageListener(this);
     }
     
     private void initPlayer(){
@@ -133,12 +149,13 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         bulletAppState.getPhysicsSpace().add(playerControl);
         bulletAppState.setDebugEnabled(false);
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * cubesSettings.getBlockSize(),0));
+        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,0.5f * cubesSettings.getBlockSize(),0));
         playerControl.warp(new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize()));
 
         playerNode.addControl(cam);
         //cam = new ChaseCamera(app.getCamera(), playerNode, inputManager);
-        cam.setMaxDistance(0.3f * cubesSettings.getBlockSize());
-        cam.setMinDistance(0.3f * cubesSettings.getBlockSize());
+        cam.setMaxDistance(3.5f * cubesSettings.getBlockSize());
+        cam.setMinDistance(3.4f * cubesSettings.getBlockSize());
         cam.setLookAtOffset(new Vector3f(0, 1.5f * cubesSettings.getBlockSize(), 0));
         cam.setDragToRotate(false);
         cam.setInvertVerticalAxis(true);
@@ -201,13 +218,17 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         else if(actionName.equals("set_block") && value){
             Vector3Int blockLocation = getCurrentPointedBlockLocation(true);
             if(blockLocation != null){
-                blockTerrain.setBlock(blockLocation, CubeAssets.BLOCK_WOOD);
+                SetBlock message = new SetBlock(blockLocation, BlockManager.getType(CubeAssets.BLOCK_WOOD));
+                app.getGameClient().sendMessage(message);
+                //blockTerrain.setBlock(blockLocation, CubeAssets.BLOCK_WOOD);
             }
         }
         else if(actionName.equals("remove_block") && value){
             Vector3Int blockLocation = getCurrentPointedBlockLocation(false);
             if((blockLocation != null) && (blockLocation.getY() > 0)){
-                blockTerrain.removeBlock(blockLocation);
+                ClearBlock message = new ClearBlock(blockLocation);
+                app.getGameClient().sendMessage(message);
+                //blockTerrain.removeBlock(blockLocation);
             }
         }
     }
@@ -237,9 +258,19 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         
         cubesSettings = CubeAssets.getSettings(this.app);
         blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(7, 1, 7));
-        blockTerrain.setBlocksFromNoise(new Vector3Int(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
-        blockTerrain.addChunkListener(new BlockChunkListener(){
 
+        
+                //To set a block, just specify the location and the block object
+        //(Existing blocks will be replaced)
+        blockTerrain.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_WOOD);
+        blockTerrain.setBlock(new Vector3Int(0, 0, 1), CubeAssets.BLOCK_WOOD);
+        blockTerrain.setBlock(new Vector3Int(1, 0, 0), CubeAssets.BLOCK_WOOD);
+        blockTerrain.setBlock(new Vector3Int(1, 0, 1), CubeAssets.BLOCK_STONE);
+        blockTerrain.setBlock(0, 0, 0, CubeAssets.BLOCK_GRASS); //For the lazy users :P
+
+        
+        //blockTerrain.setBlocksFromNoise(new Vector3Int(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        blockTerrain.addChunkListener(new BlockChunkListener(){
             @Override
             public void onSpatialUpdated(BlockChunkControl blockChunk){
                 Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
@@ -250,10 +281,49 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                     bulletAppState.getPhysicsSpace().add(rigidBodyControl);
                 }
                 rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+                //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
+                //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
+                //playerControl.warp(new Vector3f(0,0,0));
             }
         });
         terrainNode.addControl(blockTerrain);
         terrainNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
         this.app.getRootNode().attachChild(terrainNode);
+    }
+    
+    public void messageReceived(final Client source, final Message message) {
+        
+        this.app.enqueue(new Callable() {
+            public Object call() throws Exception {
+                if (message instanceof SetPlayerLocation) {
+                  // do something with the message
+                  SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
+                  System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
+                  playerControl.warp(playerLocMessage.getPlayerLoc());
+                } else if (message instanceof ResetChunk) {
+                    ResetChunk resetChunk = (ResetChunk) message;
+                    System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host #"+source.getId() );
+                    BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
+                    try {
+                        blockTerrain.readChunkPartial(bitInputStream);
+                    } catch(IOException ex){
+                        ex.printStackTrace();
+                    }
+                    terrainNode.removeControl(blockTerrain);
+                    terrainNode.addControl(blockTerrain);
+                } 
+                else if (message instanceof SetBlock) {
+                    SetBlock setMessage = (SetBlock)message;                    
+                    blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
+                } 
+                else if (message instanceof ClearBlock) {
+                    ClearBlock clearMessage = (ClearBlock)message;
+                    blockTerrain.removeBlock(clearMessage.getBlock());
+                }
+
+                return null;
+            }
+
+        });
     }
 }
