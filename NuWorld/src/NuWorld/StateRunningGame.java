@@ -147,14 +147,14 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         playerNode.addControl(playerControl);
         terrainNode.attachChild(playerNode);
         bulletAppState.getPhysicsSpace().add(playerControl);
-        bulletAppState.setDebugEnabled(true);
+        bulletAppState.setDebugEnabled(false);
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * cubesSettings.getBlockSize(),0));
         //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,0.5f * cubesSettings.getBlockSize(),0));
         playerControl.warp(new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize()));
 
         playerNode.addControl(cam);
         //cam = new ChaseCamera(app.getCamera(), playerNode, inputManager);
-        cam.setMaxDistance(3.5f * cubesSettings.getBlockSize());
+        cam.setMaxDistance(3.4f * cubesSettings.getBlockSize());
         cam.setMinDistance(3.4f * cubesSettings.getBlockSize());
         cam.setLookAtOffset(new Vector3f(0, 1.5f * cubesSettings.getBlockSize(), 0));
         cam.setDragToRotate(false);
@@ -192,9 +192,9 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         inputManager.addListener(this, "move_down");
         inputManager.addMapping("jump", new KeyTrigger(KeyInput.KEY_SPACE), new KeyTrigger(KeyInput.KEY_J));
         inputManager.addListener(this, "jump");
-        inputManager.addMapping("set_block", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+        inputManager.addMapping("set_block", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
         inputManager.addListener(this, "set_block");
-        inputManager.addMapping("remove_block", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
+        inputManager.addMapping("remove_block", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
         inputManager.addListener(this, "remove_block");
     }
     
@@ -213,7 +213,9 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
             arrowKeys[2] = value;
         }
         else if(actionName.equals("jump")){
-            playerControl.jump();
+            if (value) {
+                playerControl.jump();
+            }
         }
         else if(actionName.equals("set_block") && value){
             Vector3Int blockLocation = getCurrentPointedBlockLocation(true);
