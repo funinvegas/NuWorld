@@ -4,10 +4,185 @@
  */
 package NuWorld;
 
+import NuWorldServer.Messages.ClearBlock;
+import NuWorldServer.Messages.ResetChunk;
+import NuWorldServer.Messages.SetBlock;
+import com.cubes.BlockChunkControl;
+import com.cubes.BlockChunkListener;
+import com.cubes.BlockManager;
+import com.cubes.BlockNavigator;
+import com.cubes.BlockTerrainControl;
+import com.cubes.CubesSettings;
+import com.cubes.Vector3Int;
+import com.cubes.network.BitInputStream;
+import com.jme3.app.Application;
+import com.jme3.app.state.AppStateManager;
+import com.jme3.bullet.BulletAppState;
+import com.jme3.bullet.collision.shapes.MeshCollisionShape;
+import com.jme3.bullet.control.AbstractPhysicsControl;
+import com.jme3.bullet.control.BetterCharacterControl;
+import com.jme3.bullet.control.RigidBodyControl;
+import com.jme3.collision.CollisionResults;
+import com.jme3.input.ChaseCamera;
+import com.jme3.math.Ray;
+import com.jme3.math.Vector2f;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.queue.RenderQueue;
+import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.Calendar;
+
+
 /**
  *
  * @author funin_000
  */
 public class WorldManager {
+
+    // Starting? Terrain size?
+    // TODO this doesn't control the terrain size anymore,
+    // its now an assumption for setting the player in a good starting spot
+    public final Vector3Int TERRAIN_SIZE = new Vector3Int(100, 30, 100);
+
+    // Physics Engine
+    private BulletAppState bulletAppState;
+        
+    // THE cube terrain
+    private BlockTerrainControl blockTerrain;
+    
+    // JMonkey node to hold the terrain aka root
+    private Node terrainNode = new Node("Cube Terrain");
+
+    private GameSettings gameSettings;
+    
+    private final AppStateManager stateManager;
+    private final NuWorldMain app;
+    
+    private EntityManager entityManager;
+    
+    public WorldManager(AppStateManager stateManager, Application ap) {
+        this.stateManager = stateManager;
+        this.app = (NuWorldMain)ap;
+        this.gameSettings = app.getGameSettings(); 
+        reset();
+    }
+    
+    public void reset() {
+        if (bulletAppState != null) {
+            stateManager.detach(bulletAppState);
+        }
+        bulletAppState = new BulletAppState();
+        stateManager.attach(bulletAppState);
+        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        initBlockTerrain();
+        
+        if (entityManager != null) {
+            entityManager.cleanup();
+        }
+        entityManager = new EntityManager(this);
+        //cam.lookAtDirection(new Vector3f(1, 0, 1), Vector3f.UNIT_Y);
+    }
+    private void initBlockTerrain(){
+        CubeAssets.registerBlocks();
+        CubeAssets.initializeEnvironment(this.app);
+        
+        CubesSettings cubesSettings = gameSettings.getCubesSettings();
+        blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(7, 1, 7));
+
+        
+        //To set a block, just specify the location and the block object
+        //(Existing blocks will be replaced)
+        //blockTerrain.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(0, 0, 1), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(1, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(1, 0, 1), CubeAssets.BLOCK_STONE);
+        //blockTerrain.setBlock(0, 0, 0, CubeAssets.BLOCK_GRASS); //For the lazy users :P
+
+        
+        //blockTerrain.setBlocksFromNoise(new Vector3Int(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        blockTerrain.addChunkListener(new BlockChunkListener(){
+            @Override
+            public void onSpatialUpdated(BlockChunkControl blockChunk){
+                Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
+                RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
+                if (rigidBodyControl != null) {
+                    optimizedGeometry.removeControl(rigidBodyControl);
+                    bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
+                }
+                //if(rigidBodyControl == null){
+                rigidBodyControl = new RigidBodyControl(0);
+                optimizedGeometry.addControl(rigidBodyControl);
+                bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+                //}
+                rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+                //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
+                //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
+                //playerControl.warp(new Vector3f(0,0,0));
+            }
+        });
+        terrainNode.addControl(blockTerrain);
+        terrainNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
+        this.app.getRootNode().attachChild(terrainNode);
+    }
+
+    EntityManager getEntityManager() {
+        return entityManager;
+    }
+
+    void addPhysicsControl(AbstractPhysicsControl control) {
+        bulletAppState.getPhysicsSpace().add(control);
+        bulletAppState.setDebugEnabled(false);
+    }
+
+    void addNodeToWorld(Node playerNode) {
+        terrainNode.attachChild(playerNode);
+    }
+
+       
+    public Vector3Int getCurrentPointedBlockLocation(boolean getNeighborLocation){
+        CollisionResults results = getRayCastingResults(terrainNode);
+        if(results.size() > 0){
+            Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
+            return BlockNavigator.getPointedBlockLocation(blockTerrain, collisionContactPoint, getNeighborLocation);
+        }
+        return null;
+    }
+    
+    private CollisionResults getRayCastingResults(Node node){
+        Vector3f origin = app.getCamera().getWorldCoordinates(new Vector2f((app.getSettings().getWidth() / 2), (app.getSettings().getHeight() / 2)), 0.0f);
+        Vector3f direction = app.getCamera().getWorldCoordinates(new Vector2f((app.getSettings().getWidth() / 2), (app.getSettings().getHeight() / 2)), 0.3f);
+        direction.subtractLocal(origin).normalizeLocal();
+        Ray ray = new Ray(origin, direction);
+        CollisionResults results = new CollisionResults();
+        node.collideWith(ray, results);
+        return results;
+    }
+    
+    // TODO Make thread safe
+    public void HandleResetChunk(ResetChunk resetChunk) {
+        long startTime = Calendar.getInstance().getTimeInMillis();
+        long endTime;
+        //System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host" );
+        BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
+        try {
+            blockTerrain.readChunkPartial(bitInputStream);
+        } catch(IOException ex){
+            ex.printStackTrace();
+        }
+        terrainNode.removeControl(blockTerrain);
+        terrainNode.addControl(blockTerrain);
+        endTime = Calendar.getInstance().getTimeInMillis();
+        System.err.println("slice took " + (endTime - startTime) + "ms");
+    }
+    
+    public void HandleSetBlock(SetBlock setMessage) {
+        blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
+    }
+    
+    public void HandleClearBlock(ClearBlock clearMessage) {
+        blockTerrain.removeBlock(clearMessage.getBlock());
+    }
     
 }

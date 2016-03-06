@@ -71,6 +71,9 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         
     GameClient gameClient;
     
+    // Node for player
+    private Node playerNode;
+    
     // Global starting point
     public static void main(String[] args) {
         NuWorldMain app = new NuWorldMain();
@@ -84,6 +87,7 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
     // "The" world
     // can be reset between game instances
     private WorldManager worldManager;
+    private GameSettings gameSettings;
     
     public WorldManager getWorldManager() {
         return worldManager;
@@ -209,6 +213,8 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         initGUI();
         StateStartMenu startScreenState = new StateStartMenu();
         stateManager.attach(startScreenState);
+        gameSettings = new GameSettings(this);
+        worldManager = new WorldManager(stateManager, this);
 
     Box b = new Box(1, 1, 1);
         Geometry geom = new Geometry("Box", b);
@@ -280,5 +286,9 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
 
     GameClient getGameClient() {
         return this.gameClient;
+    }
+
+    GameSettings getGameSettings() {
+        return gameSettings;
     }
 }
