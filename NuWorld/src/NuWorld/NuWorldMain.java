@@ -81,6 +81,14 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         return this.invertYAxis;
     }*/
     
+    // "The" world
+    // can be reset between game instances
+    private WorldManager worldManager;
+    
+    public WorldManager getWorldManager() {
+        return worldManager;
+    }
+    
     public void bind(Nifty nifty, Screen screen)
     {
         System.out.print("Main bind");

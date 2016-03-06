@@ -50,6 +50,7 @@ import com.jme3.system.AppSettings;
 import de.lessvoid.nifty.Nifty;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.concurrent.Callable;
 
 /**
@@ -143,15 +144,12 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         //playerControl = new BetterCharacterControl(new CapsuleCollisionShape((cubesSettings.getBlockSize() / 2), cubesSettings.getBlockSize() * 2), 0.05f);
         playerControl = new BetterCharacterControl(cubesSettings.getBlockSize() / 2, cubesSettings.getBlockSize() * 2, 0.05f);
         playerControl.setJumpForce(new Vector3f(0,0.4f * cubesSettings.getBlockSize(),0));
-        //playerControl.setGravity(new Vector3f(0,0.0f * cubesSettings.getBlockSize(),0));
         playerNode.addControl(playerControl);
         terrainNode.attachChild(playerNode);
         bulletAppState.getPhysicsSpace().add(playerControl);
         bulletAppState.setDebugEnabled(false);
         bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * cubesSettings.getBlockSize(),0));
-        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,0.5f * cubesSettings.getBlockSize(),0));
         playerControl.warp(new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize()));
-
         playerNode.addControl(cam);
         //cam = new ChaseCamera(app.getCamera(), playerNode, inputManager);
         cam.setMaxDistance(3.4f * cubesSettings.getBlockSize());
@@ -264,11 +262,11 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         
                 //To set a block, just specify the location and the block object
         //(Existing blocks will be replaced)
-        blockTerrain.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_WOOD);
-        blockTerrain.setBlock(new Vector3Int(0, 0, 1), CubeAssets.BLOCK_WOOD);
-        blockTerrain.setBlock(new Vector3Int(1, 0, 0), CubeAssets.BLOCK_WOOD);
-        blockTerrain.setBlock(new Vector3Int(1, 0, 1), CubeAssets.BLOCK_STONE);
-        blockTerrain.setBlock(0, 0, 0, CubeAssets.BLOCK_GRASS); //For the lazy users :P
+        //blockTerrain.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(0, 0, 1), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(1, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(new Vector3Int(1, 0, 1), CubeAssets.BLOCK_STONE);
+        //blockTerrain.setBlock(0, 0, 0, CubeAssets.BLOCK_GRASS); //For the lazy users :P
 
         
         //blockTerrain.setBlocksFromNoise(new Vector3Int(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
@@ -307,6 +305,9 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                   System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
                   playerControl.warp(playerLocMessage.getPlayerLoc());
                 } else if (message instanceof ResetChunk) {
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    long endTime;
+
                     ResetChunk resetChunk = (ResetChunk) message;
                     System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host #"+source.getId() );
                     BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
@@ -317,6 +318,9 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                     }
                     terrainNode.removeControl(blockTerrain);
                     terrainNode.addControl(blockTerrain);
+                    endTime = Calendar.getInstance().getTimeInMillis();
+                    System.err.println("slice took " + (endTime - startTime) + "ms");
+ 
                 } 
                 else if (message instanceof SetBlock) {
                     SetBlock setMessage = (SetBlock)message;                    

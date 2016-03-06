@@ -31,6 +31,7 @@ import com.jme3.util.SkyFactory;
 public class CubeAssets {
     public static CubesSettings getSettings(Application application){
         CubesSettings settings = new CubesSettings(application);
+        settings.setLightsEnabled(true);
         settings.setDefaultBlockMaterial("Textures/cubes/terrain.png");
         return settings;
     }
