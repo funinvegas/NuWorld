@@ -249,6 +249,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                     initPlayer(playerName);
                     System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
                     playerControl.warp(playerLocMessage.getPlayerLoc());
+                    app.getWorldManager().enableChunks();
                 } else if (message instanceof ResetChunk) {
                     messageName = "ResetChunk";
                     app.getWorldManager().HandleResetChunk((ResetChunk)message); 

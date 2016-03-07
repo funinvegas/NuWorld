@@ -34,6 +34,7 @@ import com.jme3.scene.Node;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.HashMap;
 
 
 /**
@@ -85,6 +86,32 @@ public class WorldManager {
         entityManager = new EntityManager(this);
         //cam.lookAtDirection(new Vector3f(1, 0, 1), Vector3f.UNIT_Y);
     }
+    private HashMap<String, BlockChunkControl> chunksToRender = new HashMap<String, BlockChunkControl>();
+    private boolean readyToHandleChunks = false;
+    private void updateChunk(BlockChunkControl blockChunk) {
+        Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
+        RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
+        if (rigidBodyControl != null) {
+            optimizedGeometry.removeControl(rigidBodyControl);
+            bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
+        }
+        //if(rigidBodyControl == null){
+        rigidBodyControl = new RigidBodyControl(0);
+        optimizedGeometry.addControl(rigidBodyControl);
+        bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+        //}
+        rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+        //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
+        //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
+        //playerControl.warp(new Vector3f(0,0,0));
+    }
+    public void enableChunks() {
+        readyToHandleChunks = true;
+        for (String i : chunksToRender.keySet()) {
+            updateChunk (chunksToRender.get(i));
+        }
+        chunksToRender = new HashMap<String, BlockChunkControl>();
+    }
     private void initBlockTerrain(){
         CubeAssets.registerBlocks();
         CubeAssets.initializeEnvironment(this.app);
@@ -106,21 +133,12 @@ public class WorldManager {
         blockTerrain.addChunkListener(new BlockChunkListener(){
             @Override
             public void onSpatialUpdated(BlockChunkControl blockChunk){
-                Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
-                RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
-                if (rigidBodyControl != null) {
-                    optimizedGeometry.removeControl(rigidBodyControl);
-                    bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
+                if (readyToHandleChunks) {
+                    updateChunk(blockChunk);
+                } else {
+                    chunksToRender.put(blockTerrain.keyify(blockChunk.getBlockLocation()), blockChunk);
                 }
-                //if(rigidBodyControl == null){
-                rigidBodyControl = new RigidBodyControl(0);
-                optimizedGeometry.addControl(rigidBodyControl);
-                bulletAppState.getPhysicsSpace().add(rigidBodyControl);
-                //}
-                rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
-                //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
-                //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
-                //playerControl.warp(new Vector3f(0,0,0));
+
             }
         });
         terrainNode.addControl(blockTerrain);

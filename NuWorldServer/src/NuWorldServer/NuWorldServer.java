@@ -79,11 +79,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     public void connectionAdded(Server server, HostedConnection conn) {
         logOutput("Connection Received");
         allConnections.add(conn);
-        
         Vector3f defaultStartingLocation = new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize());
-        SetPlayerLocation playerLoc = new SetPlayerLocation("" + conn.getId(), defaultStartingLocation);
-        logOutput("Sending Player Loc Message");
-        conn.send(playerLoc);
 
         // Send chunks in 5 chunks all around
         Vector3Int blockAtPlayer = BlockNavigator.getPointedBlockLocation(blockTerrain, defaultStartingLocation, false);
@@ -108,6 +104,12 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
                 }
             }
         }
+        
+        SetPlayerLocation playerLoc = new SetPlayerLocation("" + conn.getId(), defaultStartingLocation);
+        logOutput("Sending Player Loc Message");
+        conn.send(playerLoc);
+
+
         
         
         //blockTerrain.getChunks()
