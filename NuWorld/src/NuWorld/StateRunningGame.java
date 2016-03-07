@@ -8,6 +8,7 @@ import NuWorldServer.Messages.ClearBlock;
 import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
 import NuWorldServer.Messages.SetPlayerLocation;
+import NuWorldServer.Messages.UpdatePlayerEntities;
 import com.cubes.BlockManager;
 import com.cubes.Vector3Int;
 import com.jme3.app.Application;
@@ -23,14 +24,22 @@ import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
+import com.jme3.material.Material;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.niftygui.NiftyJmeDisplay;
+import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.shape.Box;
+import com.jme3.scene.shape.Cylinder;
 import com.jme3.system.AppSettings;
 import de.lessvoid.nifty.Nifty;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -63,7 +72,6 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         walkDirection = new Vector3f();
         initControls();
         initGui();
-        initPlayer();
         app.connectToServer();
         app.addMessageListener(this);
         //cam.lookAtDirection(new Vector3f(1, 0, 1), Vector3f.UNIT_Y);
@@ -93,13 +101,14 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     }
     
     private PlayerEntity player;
-    
-    private void initPlayer(){
+    public static Geometry playerG;
+    private String playerName;
+    private void initPlayer(String playerName){
         float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
         //playerControl = new BetterCharacterControl(new CapsuleCollisionShape((cubesSettings.getBlockSize() / 2), cubesSettings.getBlockSize() * 2), 0.05f);
         playerControl = new BetterCharacterControl(blockSize / 2, blockSize * 2, 0.05f);
         playerControl.setJumpForce(new Vector3f(0,0.4f * blockSize,0));
-        player = new PlayerEntity("Player"); 
+        player = new PlayerEntity(playerName); 
         //Node playerNode = player.getNode();
         player.addControl(playerControl);
         //playerNode.addControl(playerControl);
@@ -107,6 +116,21 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
 
         player.getNode().addControl(cam);
+        
+        Cylinder cylinder;
+        cylinder = new Cylinder(2, 12, blockSize / 2, blockSize * 2);
+        Geometry geom = new Geometry("Playercylinder", cylinder);
+
+        Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+        mat.setColor("Color", ColorRGBA.Blue);
+        geom.setMaterial(mat);
+
+        geom.rotate(3.14f/2,0,0);
+        geom.move(0,blockSize,0);
+        playerG = geom;
+        player.getNode().attachChild(geom);
+
+        
         //cam = new ChaseCamera(app.getCamera(), playerNode, inputManager);
         cam.setMaxDistance(3.4f * blockSize);
         cam.setMinDistance(3.4f * blockSize);
@@ -114,9 +138,6 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         cam.setDragToRotate(false);
         cam.setInvertVerticalAxis(true);
     }
-    
-    
-
     
     @Override
     public void cleanup()
@@ -126,10 +147,19 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         app.removeMessageListener(this);
     }
     
+    long lastPlayerUpdate = 0;
 
     @Override
     public void update(float tpf)
     {
+        long updateTime = Calendar.getInstance().getTimeInMillis();
+        if (updateTime - lastPlayerUpdate > 1000) {
+            lastPlayerUpdate = updateTime;
+            if (playerName != null) {
+                SetPlayerLocation locationMessage = new SetPlayerLocation(playerName, player.getLocation());
+                app.gameClient.sendMessage(locationMessage);
+            }
+        }
         float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
         float playerMoveSpeed = ((blockSize * 360.5f) * tpf);
         Vector3f camDir = app.getCamera().getDirection().mult(playerMoveSpeed);
@@ -140,10 +170,12 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         if(arrowKeys[2]){ walkDirection.addLocal(camDir.negate()); }
         if(arrowKeys[3]){ walkDirection.addLocal(camLeft); }
         walkDirection.setY(0);
-        playerControl.setWalkDirection(walkDirection);
-        Vector3f playerLoc = player.getNode().getWorldTranslation();
-        playerLoc.setY(playerLoc.getY() + blockSize * 1.5f);
-        playerLoc = playerLoc.add(camDir.normalize().mult(blockSize * -0.5f));
+        if (playerControl != null) {
+            playerControl.setWalkDirection(walkDirection);
+            Vector3f playerLoc = player.getNode().getWorldTranslation();
+            playerLoc.setY(playerLoc.getY() + blockSize * 1.5f);
+            playerLoc = playerLoc.add(camDir.normalize().mult(blockSize * -0.5f));
+        }
         //cam.setLocation(playerLoc);
     }
     private void initControls(){
@@ -206,19 +238,78 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         
         this.app.enqueue(new Callable() {
             public Object call() throws Exception {
+                long startTime = Calendar.getInstance().getTimeInMillis();
+                long endTime;
+                String messageName = "unset";
                 if (message instanceof SetPlayerLocation) {
-                  // do something with the message
-                  SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
-                  System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
-                  playerControl.warp(playerLocMessage.getPlayerLoc());
+                    messageName = "SetPlayerLocation";
+                     // do something with the message
+                    SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
+                    playerName = playerLocMessage.getPlayerName();
+                    initPlayer(playerName);
+                    System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
+                    playerControl.warp(playerLocMessage.getPlayerLoc());
                 } else if (message instanceof ResetChunk) {
+                    messageName = "ResetChunk";
                     app.getWorldManager().HandleResetChunk((ResetChunk)message); 
                 } 
                 else if (message instanceof SetBlock) {
+                    messageName = "SetBlock";
                     app.getWorldManager().HandleSetBlock((SetBlock)message);
                 } 
                 else if (message instanceof ClearBlock) {
+                    messageName = "ClearBlock";
                     app.getWorldManager().HandleClearBlock((ClearBlock)message);
+                }
+                else if (message instanceof UpdatePlayerEntities) {
+                    messageName = "UpdatePlayerEntities";
+                    UpdatePlayerEntities updateMessage = (UpdatePlayerEntities)message;
+                    HashMap<String, Vector3f> entities = updateMessage.getPlayerLoc();
+                    EntityManager entityManager = app.getWorldManager().getEntityManager();
+                    Set<String> nameSet = entities.keySet();
+                    entityManager.prunePlayers(nameSet);
+                    for (String i : nameSet) {
+                        if (!i.equals(playerName)) {
+                            PlayerEntity otherPlayer = entityManager.getPlayerEntity(i);
+                            if (otherPlayer == null) {
+                                otherPlayer = new PlayerEntity(i);
+                                app.getWorldManager().getEntityManager().addPlayerEntity(otherPlayer);
+    
+                                Cylinder cylinder;
+                                float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
+                                cylinder = new Cylinder(2, 12, blockSize / 2, blockSize * 2);
+                                Geometry geom = new Geometry("Playercylinder", cylinder);
+
+                                Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+                                mat.setColor("Color", ColorRGBA.Blue);
+                                geom.setMaterial(mat);
+
+                                geom.rotate(3.14f/2,0,0);
+                                geom.move(0,blockSize,0);
+                                otherPlayer.getNode().attachChild(geom);
+                            }
+                            otherPlayer.getNode().setLocalTranslation(entities.get(i));
+                           /*
+                            player = new PlayerEntity("Player"); 
+                            //Node playerNode = player.getNode();
+                            player.addControl(playerControl);
+                            //playerNode.addControl(playerControl);
+                            app.getWorldManager().getEntityManager().addPlayerEntity(player);
+                            playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
+
+                            player.getNode().addControl(cam);
+*/
+    
+
+                                    
+                                    
+                                    
+                       }
+                    }
+                }
+                endTime = Calendar.getInstance().getTimeInMillis();
+                if (endTime - startTime > 16) {
+                    System.err.println(messageName + " took " + (endTime - startTime) + "ms");
                 }
                 return null;
             }

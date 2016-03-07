@@ -4,9 +4,11 @@
  */
 package NuWorld;
 
+import com.jme3.bullet.control.AbstractPhysicsControl;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  *
@@ -25,11 +27,38 @@ public class EntityManager {
         playerEntities.put(player.getName(), player);
         Node playerNode = player.getNode();
         worldManager.addNodeToWorld(playerNode);
-        worldManager.addPhysicsControl(player.getControl());
+        AbstractPhysicsControl control = player.getControl(); 
+        
+        if (control != null) {
+            worldManager.addPhysicsControl(control);
+        }
+    }
+    
+    public void removePlayerEntity(String name) {
+        PlayerEntity entity = playerEntities.get(name);
+        worldManager.removeNodeFromWorld(entity.getNode());
+        AbstractPhysicsControl control = entity.getControl(); 
+        
+        if (control != null) {
+            worldManager.removePhysicsControl(control);
+            entity.removeControl();
+        }
     }
 
     void cleanup() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    PlayerEntity getPlayerEntity(String playerName) {
+        return playerEntities.get(playerName);
+    }
+
+    void prunePlayers(Set<String> nameSet) {
+        for(String key : playerEntities.keySet()) {
+            if (!nameSet.contains(key)) {
+                removePlayerEntity(key);
+            }
+        }
     }
     
 }

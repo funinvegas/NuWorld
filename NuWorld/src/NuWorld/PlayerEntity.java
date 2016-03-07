@@ -5,6 +5,7 @@
 package NuWorld;
 
 import com.jme3.bullet.control.AbstractPhysicsControl;
+import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 
 /**
@@ -36,5 +37,16 @@ public class PlayerEntity {
     
     public AbstractPhysicsControl getControl() {
         return control;
+    }
+
+    Vector3f getLocation() {
+        return node.getWorldTranslation();
+    }
+
+    void removeControl() {
+        if (this.control != null) {
+            node.removeControl(this.control);
+        }
+        this.control = null;
     }
 }

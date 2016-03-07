@@ -25,6 +25,7 @@ import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.collision.CollisionResults;
 import com.jme3.input.ChaseCamera;
 import com.jme3.math.Ray;
+import com.jme3.math.Triangle;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue;
@@ -131,22 +132,26 @@ public class WorldManager {
         return entityManager;
     }
 
-    void addPhysicsControl(AbstractPhysicsControl control) {
-        bulletAppState.getPhysicsSpace().add(control);
-        bulletAppState.setDebugEnabled(false);
-    }
-
-    void addNodeToWorld(Node playerNode) {
-        terrainNode.attachChild(playerNode);
-    }
-
+ 
        
     public Vector3Int getCurrentPointedBlockLocation(boolean getNeighborLocation){
         CollisionResults results = getRayCastingResults(terrainNode);
-        if(results.size() > 0){
-            Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
-            return BlockNavigator.getPointedBlockLocation(blockTerrain, collisionContactPoint, getNeighborLocation);
+        for (int i = 0; i < results.size(); i++) {
+            // For each hit, we know distance, impact point, name of geometry.
+            float     dist = results.getCollision(i).getDistance();
+            Vector3f    pt = results.getCollision(i).getContactPoint();
+            String   party = results.getCollision(i).getGeometry().getName();
+            int        tri = results.getCollision(i).getTriangleIndex();
+            Vector3f  norm = results.getCollision(i).getTriangle(new Triangle()).getNormal();
+            System.out.println("Details of Collision #" + i + ":");
+            System.out.println("  Party " + party + " was hit at " + pt + ", " + dist + " wu away.");
+            System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
+            if(party == "Cube optimized_opaque") {
+                Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
+                return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation);
+            }
         }
+
         return null;
     }
     
@@ -162,8 +167,6 @@ public class WorldManager {
     
     // TODO Make thread safe
     public void HandleResetChunk(ResetChunk resetChunk) {
-        long startTime = Calendar.getInstance().getTimeInMillis();
-        long endTime;
         //System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host" );
         BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
         try {
@@ -173,8 +176,6 @@ public class WorldManager {
         }
         terrainNode.removeControl(blockTerrain);
         terrainNode.addControl(blockTerrain);
-        endTime = Calendar.getInstance().getTimeInMillis();
-        System.err.println("slice took " + (endTime - startTime) + "ms");
     }
     
     public void HandleSetBlock(SetBlock setMessage) {
@@ -184,5 +185,22 @@ public class WorldManager {
     public void HandleClearBlock(ClearBlock clearMessage) {
         blockTerrain.removeBlock(clearMessage.getBlock());
     }
+
+    void removeNodeFromWorld(Node node) {
+        node.removeFromParent();
+    }
+
+    void removePhysicsControl(AbstractPhysicsControl control) {
+        bulletAppState.getPhysicsSpace().remove(control);
+    }
     
+    void addPhysicsControl(AbstractPhysicsControl control) {
+        bulletAppState.getPhysicsSpace().add(control);
+        bulletAppState.setDebugEnabled(false);
+    }
+
+    void addNodeToWorld(Node playerNode) {
+        terrainNode.attachChild(playerNode);
+    }
+
 }

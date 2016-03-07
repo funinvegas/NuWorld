@@ -14,11 +14,16 @@ import com.jme3.network.serializing.Serializable;
  */
 @Serializable
 public class SetPlayerLocation extends AbstractMessage {
+    private String playerName;
     private Vector3f playerLoc;
     public SetPlayerLocation() {}
-    public SetPlayerLocation(Vector3f loc) {
-        playerLoc = loc;
+    public SetPlayerLocation(String playerName, Vector3f loc) {
+        this.playerName = playerName;
+        this.playerLoc = loc;
         this.setReliable(true);
+    }
+    public String getPlayerName() {
+        return playerName;
     }
     public Vector3f getPlayerLoc() {
         return playerLoc;

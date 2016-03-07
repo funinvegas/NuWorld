@@ -16,5 +16,6 @@ public class SetupMessages {
         Serializer.registerClass(ResetChunk.class);
         Serializer.registerClass(SetBlock.class);
         Serializer.registerClass(SetPlayerLocation.class);
+        Serializer.registerClass(UpdatePlayerEntities.class);
     }
 }

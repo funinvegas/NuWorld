@@ -80,6 +80,10 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
     }
 
     void sendMessage(Message message) {
-        client.send(message);
+        if (client != null && client.isConnected()) {
+            client.send(message);
+        } else {
+            System.err.println("Attempting to send message " + message.toString() + " to closed connection");
+        }
     }
 }

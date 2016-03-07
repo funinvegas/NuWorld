@@ -9,28 +9,20 @@ import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
 import NuWorldServer.Messages.SetPlayerLocation;
 import NuWorldServer.Messages.SetupMessages;
-import com.cubes.BlockChunkListener;
+import NuWorldServer.Messages.UpdatePlayerEntities;
 import com.cubes.BlockManager;
 import com.cubes.BlockNavigator;
 import com.cubes.BlockTerrainControl;
 import com.cubes.CubesSettings;
 import com.cubes.Vector3Int;
-import com.cubes.network.BitInputStream;
-import com.cubes.network.BitOutputStream;
-import com.cubes.network.CubesSerializer;
-import com.jme3.bullet.collision.shapes.MeshCollisionShape;
-import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.math.Vector3f;
+import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import com.jme3.network.Server;
-import com.jme3.renderer.queue.RenderQueue;
-import com.jme3.scene.Geometry;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import strongdk.jme.appstate.console.ConsoleAppState;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,7 +31,7 @@ import java.util.ArrayList;
  *
  * @author funin_000
  */
-public class NuWorldServer implements ConnectionListener, MessageListener {
+public class NuWorldServer implements ConnectionListener, MessageListener<HostedConnection> {
     
     private ConsoleAppState console;
     public NuWorldServer(ConsoleAppState outputConsole) {
@@ -89,7 +81,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener {
         allConnections.add(conn);
         
         Vector3f defaultStartingLocation = new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize());
-        SetPlayerLocation playerLoc = new SetPlayerLocation(defaultStartingLocation);
+        SetPlayerLocation playerLoc = new SetPlayerLocation("" + conn.getId(), defaultStartingLocation);
         logOutput("Sending Player Loc Message");
         conn.send(playerLoc);
 
@@ -132,32 +124,24 @@ public class NuWorldServer implements ConnectionListener, MessageListener {
 
     public void connectionRemoved(Server server, HostedConnection conn) {
         logOutput("Connection Lost");
+        entityManager.cleanConnection(conn.getId());
         allConnections.remove(conn);
     }
 
-    public void messageReceived(Object source, Message message) {
+    public void messageReceived(HostedConnection source, Message message) {
+
         logOutput("Message Received");
         //logOutput(m.toString());
             //public Object call() throws Exception {
                 if (message instanceof SetPlayerLocation) {
-                /*  // do something with the message
                   SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
-                  System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
-                  playerControl.warp(playerLocMessage.getPlayerLoc());
-                */
+                  System.out.println("Server received '" +playerLocMessage.getPlayerLoc().toString() +"' from client #"+source.getId() );
+                  entityManager.setPlayerLocation(source.getId(), playerLocMessage.getPlayerLoc());
+                  // TODO put this on a timer
+                  server.broadcast(entityManager.buildUpdatePlayersMessage());
                 } else if (message instanceof ResetChunk) {
-                /*    ResetChunk resetChunk = (ResetChunk) message;
-                    System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host #"+source.getId() );
-                    BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
-                    try {
-                        blockTerrain.readChunkPartial(bitInputStream);
-                    } catch(IOException ex){
-                        ex.printStackTrace();
-                    }
-                    terrainNode.removeControl(blockTerrain);
-                    terrainNode.addControl(blockTerrain);
-                */}
-                if (message instanceof SetBlock) {
+                }
+                else if (message instanceof SetBlock) {
                     SetBlock setMessage = (SetBlock)message;                    
                     blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
                     server.broadcast(setMessage);                    
@@ -167,12 +151,16 @@ public class NuWorldServer implements ConnectionListener, MessageListener {
                     blockTerrain.removeBlock(clearMessage.getBlock());
                     server.broadcast(clearMessage);                    
                 }
+                else if (message instanceof UpdatePlayerEntities) {
+                    
+                }
 //                return null;
 //            }
         
     }
     private CubesSettings cubesSettings;
     private BlockTerrainControl blockTerrain;
+    private ServerEntities entityManager;
     private final Vector3Int TERRAIN_SIZE = new Vector3Int(100, 30, 100);
     
       private void initBlockTerrain(){
@@ -182,6 +170,8 @@ public class NuWorldServer implements ConnectionListener, MessageListener {
         cubesSettings = CubeAssets.getSettings(null);
         blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(2, 1, 2));
         blockTerrain.setBlocksFromNoise(new Vector3Int(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        
+        entityManager = new ServerEntities();
         /*blockTerrain.addChunkListener(new BlockChunkListener(){
 
             @Override
