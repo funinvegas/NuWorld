@@ -76,7 +76,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
     }
 
     public void messageReceived(Client source, Message m) {
-        logOutput("(Generic Handler) Message received " + m.toString());
+        //logOutput("(Generic Handler) Message received " + m.toString());
     }
 
     void sendMessage(Message message) {

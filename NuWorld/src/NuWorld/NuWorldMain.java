@@ -162,7 +162,18 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
                    console.appendConsoleError("Who are you? " + parser.getString(0));
              }*/
              //this.invertYAxis = !this.invertYAxis;
+       } else if (evt.getCommand().equals("/loc")) {
+           
+       } else if (evt.getCommand().equals("/tp")) {
+           
        }
+       
+    }
+    public void addCommandListener(CommandListener listener, String command) {
+        console.registerCommand(command, listener);
+    }
+    public void removeCommandListener(CommandListener listener, String command) {
+        console.unregisterCommand(command);
     }
     private ChaseCamera chaseCam;
     private void initGUI(){
@@ -290,5 +301,9 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
 
     GameSettings getGameSettings() {
         return gameSettings;
+    }
+
+    ConsoleAppState getConsoleAppState() {
+        return console;
     }
 }

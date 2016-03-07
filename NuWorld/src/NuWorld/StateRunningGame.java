@@ -41,12 +41,16 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import strongdk.jme.appstate.console.CommandEvent;
+import strongdk.jme.appstate.console.CommandListener;
+import strongdk.jme.appstate.console.CommandParser;
+import strongdk.jme.appstate.console.ConsoleAppState;
 
 /**
  *
  * @author funin_000
  */
-public class StateRunningGame extends AbstractAppState implements ActionListener, MessageListener<Client> {
+public class StateRunningGame extends AbstractAppState implements ActionListener, MessageListener<Client>, CommandListener {
     NiftyJmeDisplay niftyDisplay;
     Nifty nifty;
     NuWorldMain app;
@@ -97,7 +101,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         nifty.setIgnoreMouseEvents(true);
         app.hideCursor();
 
-        
+        app.addCommandListener(this, "/loc");
+        app.addCommandListener(this, "/tp");
     }
     
     private PlayerEntity player;
@@ -145,6 +150,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         super.cleanup();
         inputManager.removeListener(this);
         app.removeMessageListener(this);
+        app.removeCommandListener(this, "/loc");
+        app.removeCommandListener(this, "/tp");
     }
     
     long lastPlayerUpdate = 0;
@@ -317,4 +324,26 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
 
         });
     }
-}
+
+   
+    @Override
+    public void execute(CommandEvent evt) {
+       final CommandParser parser = evt.getParser();
+      if (evt.getCommand().equals("/tp")) {
+           ConsoleAppState console = app.getConsoleAppState();
+           Integer x = parser.getInt(0);
+           Integer y = parser.getInt(1);
+           Integer z = parser.getInt(2);
+           console.appendConsole("Attempting to port player to " + x + ", " + y + ", " + z);
+           if (x != null && y != null && z != null) {
+               Vector3f vf = new Vector3f(x,y,z);
+               ((BetterCharacterControl)app.getWorldManager().getEntityManager().getPlayerEntity(playerName).getControl()).warp(vf);
+           }
+         
+       } else if (evt.getCommand().equals("/loc")) {
+           ConsoleAppState console = app.getConsoleAppState();
+           Vector3f playerLoc = app.getWorldManager().getEntityManager().getPlayerEntity(playerName).getLocation();
+           console.appendConsole("Player location is " + playerLoc.toString());
+       }
+       
+    }}
