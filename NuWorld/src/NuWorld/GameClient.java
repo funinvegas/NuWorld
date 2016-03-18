@@ -4,7 +4,10 @@
  */
 package NuWorld;
 
+import NuWorldServer.Messages.RequestChunk;
 import NuWorldServer.Messages.SetBlock;
+import com.cubes.BlockTerrainControl;
+import com.cubes.Vector3Int;
 import com.jme3.network.Client;
 import com.jme3.network.ClientStateListener;
 import com.jme3.network.Message;
@@ -86,4 +89,68 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
             System.err.println("Attempting to send message " + message.toString() + " to closed connection");
         }
     }
+
+    void requestNextChunk(BlockTerrainControl blockTerrain, PlayerEntity primaryEntity) {
+        Vector3Int currentChunk = blockTerrain.worldLocationToChunkLocation(primaryEntity.getLocation());
+        //System.out.println("player loc is " + currentChunk.toString());
+        for (int iX = 0; iX < 15; ++iX) {
+//          for (int iY = 0; iY < 10; ++iY) {
+            for (int iZ = 0; iZ < 15; ++iZ) {
+                // left wall
+                for( int i = 0; i < iZ * 2; ++i) {
+                    Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX, 0/*currentChunk.getY()*/, currentChunk.getZ() - iZ + i);
+                    //System.out.println("LW checking " + locationToCheck.toString());
+                    if (!locationToCheck.hasNegativeCoordinate()) {
+                        if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
+                            RequestChunk requestChunk = new RequestChunk(locationToCheck);
+                            //System.out.println("Requesting chunk " + locationToCheck.toString());
+                            sendMessage(requestChunk);
+                            return;
+                        }
+                    }
+                } 
+                // right wall
+                for( int i = 0; i < iZ * 2; ++i) {
+                    Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() + iX, 0/*currentChunk.getY()*/, currentChunk.getZ() - iZ + i);
+                    //System.out.println("RW checking " + locationToCheck.toString());
+                    if (!locationToCheck.hasNegativeCoordinate()) {
+                        if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
+                            RequestChunk requestChunk = new RequestChunk(locationToCheck);
+                            //System.out.println("Requesting chunk " + locationToCheck.toString());
+                            sendMessage(requestChunk);
+                            return;
+                        }
+                    }
+                } 
+                // top wall
+                for( int i = 0; i < iZ * 2; ++i) {
+                    Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() - iZ);
+                    //System.out.println("TW checking " + locationToCheck.toString());
+                    if (!locationToCheck.hasNegativeCoordinate()) {
+                        if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
+                            RequestChunk requestChunk = new RequestChunk(locationToCheck);
+                            //System.out.println("Requesting chunk " + locationToCheck.toString());
+                            sendMessage(requestChunk);
+                            return;
+                        }
+                    }
+                } 
+                // bottom wall
+                for( int i = 0; i < iZ * 2; ++i) {
+                    Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() + iZ);
+                    //System.out.println("BW checking " + locationToCheck.toString());
+                    if (!locationToCheck.hasNegativeCoordinate()) {
+                        if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
+                            RequestChunk requestChunk = new RequestChunk(locationToCheck);
+                            //System.out.println("Requesting chunk " + locationToCheck.toString());
+                            sendMessage(requestChunk);
+                            return;
+                        }
+                    }
+                } 
+            }
+//          }
+        }
+    }
+
 }

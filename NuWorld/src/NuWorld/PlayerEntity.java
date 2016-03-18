@@ -42,6 +42,7 @@ public class PlayerEntity {
     Vector3f getLocation() {
         return node.getWorldTranslation();
     }
+    
 
     void removeControl() {
         if (this.control != null) {

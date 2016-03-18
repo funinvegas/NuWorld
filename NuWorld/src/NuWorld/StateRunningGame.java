@@ -118,6 +118,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         player.addControl(playerControl);
         //playerNode.addControl(playerControl);
         app.getWorldManager().getEntityManager().addPlayerEntity(player);
+        app.getWorldManager().setPrimaryEntity(player);
         playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
 
         player.getNode().addControl(cam);
@@ -176,7 +177,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         if(arrowKeys[1]){ walkDirection.addLocal(camLeft.negate()); }
         if(arrowKeys[2]){ walkDirection.addLocal(camDir.negate()); }
         if(arrowKeys[3]){ walkDirection.addLocal(camLeft); }
-        walkDirection.setY(0);
+        //walkDirection.setY(0);
         if (playerControl != null) {
             playerControl.setWalkDirection(walkDirection);
             Vector3f playerLoc = player.getNode().getWorldTranslation();
@@ -242,87 +243,87 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     }
     
     public void messageReceived(final Client source, final Message message) {
-        
-        this.app.enqueue(new Callable() {
-            public Object call() throws Exception {
-                long startTime = Calendar.getInstance().getTimeInMillis();
-                long endTime;
-                String messageName = "unset";
-                if (message instanceof SetPlayerLocation) {
-                    messageName = "SetPlayerLocation";
-                     // do something with the message
-                    SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
-                    playerName = playerLocMessage.getPlayerName();
-                    initPlayer(playerName);
-                    System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
-                    playerControl.warp(playerLocMessage.getPlayerLoc());
-                    app.getWorldManager().enableChunks();
-                } else if (message instanceof ResetChunk) {
-                    messageName = "ResetChunk";
-                    app.getWorldManager().HandleResetChunk((ResetChunk)message); 
-                } 
-                else if (message instanceof SetBlock) {
-                    messageName = "SetBlock";
-                    app.getWorldManager().HandleSetBlock((SetBlock)message);
-                } 
-                else if (message instanceof ClearBlock) {
-                    messageName = "ClearBlock";
-                    app.getWorldManager().HandleClearBlock((ClearBlock)message);
-                }
-                else if (message instanceof UpdatePlayerEntities) {
-                    messageName = "UpdatePlayerEntities";
-                    UpdatePlayerEntities updateMessage = (UpdatePlayerEntities)message;
-                    HashMap<String, Vector3f> entities = updateMessage.getPlayerLoc();
-                    EntityManager entityManager = app.getWorldManager().getEntityManager();
-                    Set<String> nameSet = entities.keySet();
-                    entityManager.prunePlayers(nameSet);
-                    for (String i : nameSet) {
-                        if (!i.equals(playerName)) {
-                            PlayerEntity otherPlayer = entityManager.getPlayerEntity(i);
-                            if (otherPlayer == null) {
-                                otherPlayer = new PlayerEntity(i);
-                                app.getWorldManager().getEntityManager().addPlayerEntity(otherPlayer);
-    
-                                Cylinder cylinder;
-                                float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
-                                cylinder = new Cylinder(2, 12, blockSize / 2, blockSize * 2);
-                                Geometry geom = new Geometry("Playercylinder", cylinder);
 
-                                Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
-                                mat.setColor("Color", ColorRGBA.Blue);
-                                geom.setMaterial(mat);
+        if (message instanceof ResetChunk) {
+            app.getWorldManager().HandleResetChunk((ResetChunk)message); 
+        } else {
 
-                                geom.rotate(3.14f/2,0,0);
-                                geom.move(0,blockSize,0);
-                                otherPlayer.getNode().attachChild(geom);
-                            }
-                            otherPlayer.getNode().setLocalTranslation(entities.get(i));
-                           /*
-                            player = new PlayerEntity("Player"); 
-                            //Node playerNode = player.getNode();
-                            player.addControl(playerControl);
-                            //playerNode.addControl(playerControl);
-                            app.getWorldManager().getEntityManager().addPlayerEntity(player);
-                            playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
-
-                            player.getNode().addControl(cam);
-*/
-    
-
-                                    
-                                    
-                                    
-                       }
+            this.app.enqueue(new Callable() {
+                public Object call() throws Exception {
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    long endTime;
+                    String messageName = "unset";
+                    if (message instanceof SetPlayerLocation) {
+                        messageName = "SetPlayerLocation";
+                         // do something with the message
+                        SetPlayerLocation playerLocMessage = (SetPlayerLocation) message;
+                        playerName = playerLocMessage.getPlayerName();
+                        initPlayer(playerName);
+                        System.out.println("Client received '" +playerLocMessage.getPlayerLoc().toString() +"' from host #"+source.getId() );
+                        playerControl.warp(playerLocMessage.getPlayerLoc());
+                        app.getWorldManager().enableChunks();
+                    } else if (message instanceof SetBlock) {
+                        messageName = "SetBlock";
+                        app.getWorldManager().HandleSetBlock((SetBlock)message);
+                    } 
+                    else if (message instanceof ClearBlock) {
+                        messageName = "ClearBlock";
+                        app.getWorldManager().HandleClearBlock((ClearBlock)message);
                     }
-                }
-                endTime = Calendar.getInstance().getTimeInMillis();
-                if (endTime - startTime > 16) {
-                    System.err.println(messageName + " took " + (endTime - startTime) + "ms");
-                }
-                return null;
-            }
+                    else if (message instanceof UpdatePlayerEntities) {
+                        messageName = "UpdatePlayerEntities";
+                        UpdatePlayerEntities updateMessage = (UpdatePlayerEntities)message;
+                        HashMap<String, Vector3f> entities = updateMessage.getPlayerLoc();
+                        EntityManager entityManager = app.getWorldManager().getEntityManager();
+                        Set<String> nameSet = entities.keySet();
+                        entityManager.prunePlayers(nameSet);
+                        for (String i : nameSet) {
+                            if (!i.equals(playerName)) {
+                                PlayerEntity otherPlayer = entityManager.getPlayerEntity(i);
+                                if (otherPlayer == null) {
+                                    otherPlayer = new PlayerEntity(i);
+                                    app.getWorldManager().getEntityManager().addPlayerEntity(otherPlayer);
 
-        });
+                                    Cylinder cylinder;
+                                    float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
+                                    cylinder = new Cylinder(2, 12, blockSize / 2, blockSize * 2);
+                                    Geometry geom = new Geometry("Playercylinder", cylinder);
+
+                                    Material mat = new Material(app.getAssetManager(), "Common/MatDefs/Misc/Unshaded.j3md");
+                                    mat.setColor("Color", ColorRGBA.Blue);
+                                    geom.setMaterial(mat);
+
+                                    geom.rotate(3.14f/2,0,0);
+                                    geom.move(0,blockSize,0);
+                                    otherPlayer.getNode().attachChild(geom);
+                                }
+                                otherPlayer.getNode().setLocalTranslation(entities.get(i));
+                               /*
+                                player = new PlayerEntity("Player"); 
+                                //Node playerNode = player.getNode();
+                                player.addControl(playerControl);
+                                //playerNode.addControl(playerControl);
+                                app.getWorldManager().getEntityManager().addPlayerEntity(player);
+                                playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
+
+                                player.getNode().addControl(cam);
+    */
+
+
+
+
+
+                           }
+                        }
+                    }
+                    endTime = Calendar.getInstance().getTimeInMillis();
+                    if (endTime - startTime > 16) {
+                        System.err.println(messageName + " took " + (endTime - startTime) + "ms");
+                    }
+                    return null;
+                }
+            });
+        }
     }
 
    

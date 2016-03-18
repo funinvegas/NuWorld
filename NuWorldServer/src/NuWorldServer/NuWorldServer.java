@@ -5,11 +5,13 @@
 package NuWorldServer;
 
 import NuWorldServer.Messages.ClearBlock;
+import NuWorldServer.Messages.RequestChunk;
 import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
 import NuWorldServer.Messages.SetPlayerLocation;
 import NuWorldServer.Messages.SetupMessages;
 import NuWorldServer.Messages.UpdatePlayerEntities;
+import com.cubes.BlockChunkControl;
 import com.cubes.BlockManager;
 import com.cubes.BlockNavigator;
 import com.cubes.BlockTerrainControl;
@@ -26,6 +28,12 @@ import com.jme3.network.Server;
 import strongdk.jme.appstate.console.ConsoleAppState;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import terrain.TerrainGenerator;
+import terrain.TerrainGeneratorFactory;
+import terrain.TerrainGeneratorFactory;
 
 /**
  *
@@ -34,6 +42,7 @@ import java.util.ArrayList;
 public class NuWorldServer implements ConnectionListener, MessageListener<HostedConnection> {
     
     private ConsoleAppState console;
+    private TerrainGenerator terrainGenerator;
     public NuWorldServer(ConsoleAppState outputConsole) {
         console = outputConsole;
         allConnections = new ArrayList<HostedConnection>();
@@ -44,13 +53,14 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     
     // All client connections
     ArrayList<HostedConnection> allConnections;
+    private Map<Integer, PlayerClient> playerClients = new HashMap<Integer, PlayerClient> ();
 
-    private void logError(String text) {
+    public void logError(String text) {
         console.appendConsoleError(text);
         System.err.printf(text);
     }
     
-    private void logOutput(String text) {
+    public void logOutput(String text) {
         console.appendConsole(text);
         System.out.printf(text);
     }
@@ -75,39 +85,26 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
             logError("Server failed");
         }
     }
+    public void ensurechunk(Vector3Int chunkLoc) {
+        if (this.blockTerrain.getChunkByChunkLocation(chunkLoc) == null) {
+            blockTerrain.setChunk(chunkLoc, this.terrainGenerator.generateChunk(blockTerrain, chunkLoc, cubesSettings));
+        }
+    }
+
+    public Vector3f getDefaultPlayerStartLocation() {
+        /*Vector3Int zero = new Vector3Int(0,0,0);
+        this.ensureChunk(zero);
+        BlockChunkControl startingChunk = blockTerrain.getChunkByBlockLocation(zero);
+        startingChunk.get
+        */
+        return new Vector3f(8, 255, 8).mult(cubesSettings.getBlockSize());
+    }
 
     public void connectionAdded(Server server, HostedConnection conn) {
         logOutput("Connection Received");
         allConnections.add(conn);
-        Vector3f defaultStartingLocation = new Vector3f(5, TERRAIN_SIZE.getY() + 5, 5).mult(cubesSettings.getBlockSize());
+        playerClients.put(conn.getId(), new PlayerClient(this, conn));
 
-        // Send chunks in 5 chunks all around
-        Vector3Int blockAtPlayer = BlockNavigator.getPointedBlockLocation(blockTerrain, defaultStartingLocation, false);
-        Vector3Int chunkAtPlayer = blockTerrain.getChunkLocation(blockAtPlayer);
-        int range = 5;
-        for(int x = chunkAtPlayer.getX() - range; x <= chunkAtPlayer.getX() + range; ++x) {
-            for(int y = chunkAtPlayer.getY() - range; y <= chunkAtPlayer.getY() + range; ++y) {
-                for(int z = chunkAtPlayer.getZ() - range; z <= chunkAtPlayer.getZ() + range; ++z) {
-                    Vector3Int chunkToSend = new Vector3Int(x,y,z);
-                    // TODO generate missing chunks on demand
-                    //Vector3Int chunkToSend = chunkAtPlayer;
-                    if (blockTerrain.isValidChunkLocation(chunkToSend)) {
-                        ArrayList<byte[]> slices = blockTerrain.writeChunkPartials(chunkToSend);
-
-                        // The terrain renderer doesn't like building from 0->256
-                        logOutput("Sending Chunk Slices" + chunkToSend.getX() + ", " + chunkToSend.getY() + ", " + chunkToSend.getZ());
-                        for (int i = slices.size() - 1; i >= 0 ; --i) {
-                            ResetChunk resetMessage = new ResetChunk(slices.get(i));
-                            conn.send(resetMessage);
-                        }
-                    }
-                }
-            }
-        }
-        
-        SetPlayerLocation playerLoc = new SetPlayerLocation("" + conn.getId(), defaultStartingLocation);
-        logOutput("Sending Player Loc Message");
-        conn.send(playerLoc);
 
 
         
@@ -156,6 +153,10 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
                 else if (message instanceof UpdatePlayerEntities) {
                     
                 }
+                else if (message instanceof RequestChunk) {
+                    PlayerClient client = playerClients.get(source.getId());
+                    client.handleRequestChunk((RequestChunk)message);
+                }
 //                return null;
 //            }
         
@@ -163,16 +164,55 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     private CubesSettings cubesSettings;
     private BlockTerrainControl blockTerrain;
     private ServerEntities entityManager;
-    private final Vector3Int TERRAIN_SIZE = new Vector3Int(100, 30, 100);
+    private final Vector3Int TERRAIN_SIZE = new Vector3Int(30, 30, 30);
     
-      private void initBlockTerrain(){
+    public Vector3Int getChunkAtLocation(Vector3f defaultStartingLocation) {
+        // Send chunks in 5 chunks all around
+        Vector3Int blockAtPlayer = BlockNavigator.getPointedBlockLocation(blockTerrain, defaultStartingLocation, false);
+        Vector3Int chunkAtPlayer = blockTerrain.getChunkLocation(blockAtPlayer);
+        return chunkAtPlayer;
+    }
+    public BlockChunkControl getChunkAt(Vector3Int chunkLoc) {
+        if (!blockTerrain.isValidChunkLocation(chunkLoc)) {
+            return null;
+        }
+        return blockTerrain.getChunkByBlockLocation(chunkLoc);
+    }
+    
+    public boolean sendChunkToPlayer(Vector3Int chunk, HostedConnection conn) {
+        if (chunk != null) {
+            try {
+                ArrayList<byte[]> slices = blockTerrain.writeChunkPartials(chunk);
+
+                // The terrain renderer doesn't like building from 0->256
+                logOutput("Sending Chunk Slices" + chunk.getX() + ", " + chunk.getY() + ", " + chunk.getZ());
+                for (int i = slices.size() - 1; i >= 0 ; --i) {
+                    ResetChunk resetMessage = new ResetChunk(slices.get(i));
+                    conn.send(resetMessage);
+                }
+                return true;
+            } catch (Exception ex) {
+                logError("Failed to send chunk to client " + ex.toString());
+            };
+        }
+        return false;
+    }
+
+    private void initBlockTerrain(){
         CubeAssets.registerBlocks();
         CubeAssets.initializeEnvironment(null);
         
         cubesSettings = CubeAssets.getSettings(null);
         blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(2, 1, 2));
-        blockTerrain.setBlocksFromNoise(new Vector3Int(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
-        
+        //blockTerrain.setBlocksFromNoise(new Vector3Int(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        /*for (int iX = 0; iX < 50; ++iX) {
+            for (int iY = 0; iY < 30; ++iY) {
+                for (int iZ = 0; iZ < 50; ++iZ) {
+                    blockTerrain.setBlock(new Vector3Int(iX, iY, iZ), CubeAssets.BLOCK_GRASS);
+                }
+            }
+        }*/
+
         entityManager = new ServerEntities();
         /*blockTerrain.addChunkListener(new BlockChunkListener(){
 
@@ -191,6 +231,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
         //terrainNode.addControl(blockTerrain);
         //terrainNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
         //this.app.getRootNode().attachChild(terrainNode);
+        this.terrainGenerator = TerrainGeneratorFactory.makeTerrainGenerator(TerrainGeneratorFactory.GeneratorType.SIMPLEX_2D, blockTerrain);
     }
 }
 

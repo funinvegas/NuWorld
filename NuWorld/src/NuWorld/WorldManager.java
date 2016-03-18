@@ -5,6 +5,7 @@
 package NuWorld;
 
 import NuWorldServer.Messages.ClearBlock;
+import NuWorldServer.Messages.RequestChunk;
 import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
 import com.cubes.BlockChunkControl;
@@ -35,6 +36,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
 
 
 /**
@@ -63,6 +65,7 @@ public class WorldManager {
     private final NuWorldMain app;
     
     private EntityManager entityManager;
+    private PlayerEntity primaryEntity;
     
     public WorldManager(AppStateManager stateManager, Application ap) {
         this.stateManager = stateManager;
@@ -77,7 +80,8 @@ public class WorldManager {
         }
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-2f * gameSettings.getCubesSettings().getBlockSize(),0));
         initBlockTerrain();
         
         if (entityManager != null) {
@@ -89,6 +93,8 @@ public class WorldManager {
     private HashMap<String, BlockChunkControl> chunksToRender = new HashMap<String, BlockChunkControl>();
     private boolean readyToHandleChunks = false;
     private void updateChunk(BlockChunkControl blockChunk) {
+        long startTime = Calendar.getInstance().getTimeInMillis();
+        long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
         RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
         if (rigidBodyControl != null) {
@@ -104,6 +110,8 @@ public class WorldManager {
         //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
         //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
         //playerControl.warp(new Vector3f(0,0,0));
+        endTime = Calendar.getInstance().getTimeInMillis();
+        System.out.println("updateChunk took " + (endTime - startTime));
     }
     public void enableChunks() {
         readyToHandleChunks = true;
@@ -187,13 +195,25 @@ public class WorldManager {
     public void HandleResetChunk(ResetChunk resetChunk) {
         //System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host" );
         BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
+        boolean blockFinished = false;
         try {
-            blockTerrain.readChunkPartial(bitInputStream);
+            blockFinished = blockTerrain.readChunkPartial(bitInputStream);
+            if (blockFinished && primaryEntity != null) {
+                app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
+            }
         } catch(IOException ex){
             ex.printStackTrace();
         }
-        terrainNode.removeControl(blockTerrain);
-        terrainNode.addControl(blockTerrain);
+        if (blockFinished) {
+            this.app.enqueue(new Callable() {
+                public Object call() throws Exception {
+                    terrainNode.removeControl(blockTerrain);
+                    terrainNode.addControl(blockTerrain);
+                    return null;
+                }
+            });
+            
+        }
     }
     
     public void HandleSetBlock(SetBlock setMessage) {
@@ -214,11 +234,16 @@ public class WorldManager {
     
     void addPhysicsControl(AbstractPhysicsControl control) {
         bulletAppState.getPhysicsSpace().add(control);
-        bulletAppState.setDebugEnabled(false);
+        bulletAppState.setDebugEnabled(true);
     }
 
     void addNodeToWorld(Node playerNode) {
         terrainNode.attachChild(playerNode);
+    }
+
+    void setPrimaryEntity(PlayerEntity player) {
+        this.primaryEntity = player;
+        app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
     }
 
 }
