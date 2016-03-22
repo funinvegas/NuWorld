@@ -93,8 +93,8 @@ public class WorldManager {
     private HashMap<String, BlockChunkControl> chunksToRender = new HashMap<String, BlockChunkControl>();
     private boolean readyToHandleChunks = false;
     private void updateChunk(BlockChunkControl blockChunk) {
-        long startTime = Calendar.getInstance().getTimeInMillis();
-        long endTime;
+        //long startTime = Calendar.getInstance().getTimeInMillis();
+        //long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
         RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
         if (rigidBodyControl != null) {
@@ -102,16 +102,18 @@ public class WorldManager {
             bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
         }
         //if(rigidBodyControl == null){
-        rigidBodyControl = new RigidBodyControl(0);
-        optimizedGeometry.addControl(rigidBodyControl);
-        bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+        if (optimizedGeometry.getMesh().getVertexCount() > 0) {
+            rigidBodyControl = new RigidBodyControl(0);
+            optimizedGeometry.addControl(rigidBodyControl);
+            bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+            rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+        }
         //}
-        rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
         //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
         //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
         //playerControl.warp(new Vector3f(0,0,0));
-        endTime = Calendar.getInstance().getTimeInMillis();
-        System.out.println("updateChunk took " + (endTime - startTime));
+        //endTime = Calendar.getInstance().getTimeInMillis();
+        //System.out.println("updateChunk took " + (endTime - startTime));
     }
     public void enableChunks() {
         readyToHandleChunks = true;
@@ -199,6 +201,7 @@ public class WorldManager {
         try {
             blockFinished = blockTerrain.readChunkPartial(bitInputStream);
             if (blockFinished && primaryEntity != null) {
+                app.getGameClient().setBlockFinished();
                 app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
             }
         } catch(IOException ex){
@@ -218,6 +221,10 @@ public class WorldManager {
     
     public void HandleSetBlock(SetBlock setMessage) {
         blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
+        // TODO: Move this into terrain
+        // and only do it when actually needed (first block? mesh vert count 0?)
+        terrainNode.removeControl(blockTerrain);
+        terrainNode.addControl(blockTerrain);
     }
     
     public void HandleClearBlock(ClearBlock clearMessage) {
@@ -234,7 +241,7 @@ public class WorldManager {
     
     void addPhysicsControl(AbstractPhysicsControl control) {
         bulletAppState.getPhysicsSpace().add(control);
-        bulletAppState.setDebugEnabled(true);
+        bulletAppState.setDebugEnabled(false);
     }
 
     void addNodeToWorld(Node playerNode) {
@@ -244,6 +251,10 @@ public class WorldManager {
     void setPrimaryEntity(PlayerEntity player) {
         this.primaryEntity = player;
         app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
+    }
+    
+    BlockTerrainControl getTerrain() {
+        return blockTerrain;
     }
 
 }

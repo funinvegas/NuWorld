@@ -103,6 +103,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
 
         app.addCommandListener(this, "/loc");
         app.addCommandListener(this, "/tp");
+        app.addCommandListener(this, "/update");
     }
     
     private PlayerEntity player;
@@ -153,6 +154,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         app.removeMessageListener(this);
         app.removeCommandListener(this, "/loc");
         app.removeCommandListener(this, "/tp");
+        app.removeCommandListener(this, "/update");
     }
     
     long lastPlayerUpdate = 0;
@@ -184,6 +186,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
             playerLoc.setY(playerLoc.getY() + blockSize * 1.5f);
             playerLoc = playerLoc.add(camDir.normalize().mult(blockSize * -0.5f));
         }
+        app.getGameClient().requestNextChunk(app.getWorldManager().getTerrain(), player);
         //cam.setLocation(playerLoc);
     }
     private void initControls(){
@@ -234,7 +237,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         }
         else if(actionName.equals("remove_block") && value){
             Vector3Int blockLocation = app.getWorldManager().getCurrentPointedBlockLocation(false);
-            if((blockLocation != null) && (blockLocation.getY() > 0)){
+            if(blockLocation != null){
                 ClearBlock message = new ClearBlock(blockLocation);
                 app.getGameClient().sendMessage(message);
                 //blockTerrain.removeBlock(blockLocation);
@@ -345,6 +348,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
            ConsoleAppState console = app.getConsoleAppState();
            Vector3f playerLoc = app.getWorldManager().getEntityManager().getPlayerEntity(playerName).getLocation();
            console.appendConsole("Player location is " + playerLoc.toString());
+       } else if (evt.getCommand().equals("/update")) {
+           app.getGameClient().requestNextChunk(app.getWorldManager().getTerrain(), player);
        }
        
     }}

@@ -77,7 +77,7 @@ public class Flatland implements TerrainGenerator
     @Override
     public BlockChunkControl generateChunk(BlockTerrainControl terrain, Vector3Int chunkLocation, CubesSettings settings)
     {
-        int yMax = settings.getChunkSizeY() - 5;
+        int yMax = settings.getChunkSizeY()/2;
         BlockChunkControl chunk;
         chunk = new BlockChunkControl(terrain, chunkLocation);
         for (int x = 0; x < settings.getChunkSizeX(); x++)
