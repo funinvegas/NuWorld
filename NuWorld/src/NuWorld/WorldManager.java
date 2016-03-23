@@ -176,7 +176,7 @@ public class WorldManager {
             System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
             if(party == "Cube optimized_opaque") {
                 Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
-                return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation);
+                return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation, norm);
             }
         }
 

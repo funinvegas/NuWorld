@@ -168,7 +168,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     
     public Vector3Int getChunkAtLocation(Vector3f defaultStartingLocation) {
         // Send chunks in 5 chunks all around
-        Vector3Int blockAtPlayer = BlockNavigator.getPointedBlockLocation(blockTerrain, defaultStartingLocation, false);
+        Vector3Int blockAtPlayer = BlockNavigator.getPointedBlockLocation(blockTerrain, defaultStartingLocation, false, null);
         Vector3Int chunkAtPlayer = blockTerrain.getChunkLocation(blockAtPlayer);
         return chunkAtPlayer;
     }
