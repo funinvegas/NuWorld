@@ -93,8 +93,8 @@ public class WorldManager {
     private HashMap<String, BlockChunkControl> chunksToRender = new HashMap<String, BlockChunkControl>();
     private boolean readyToHandleChunks = false;
     private void updateChunk(BlockChunkControl blockChunk) {
-        //long startTime = Calendar.getInstance().getTimeInMillis();
-        //long endTime;
+        long startTime = Calendar.getInstance().getTimeInMillis();
+        long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
         RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
         if (rigidBodyControl != null) {
@@ -112,8 +112,10 @@ public class WorldManager {
         //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
         //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
         //playerControl.warp(new Vector3f(0,0,0));
-        //endTime = Calendar.getInstance().getTimeInMillis();
-        //System.out.println("updateChunk took " + (endTime - startTime));
+        endTime = Calendar.getInstance().getTimeInMillis();
+        if (endTime - startTime > 16) {
+            System.out.println("updateChunk took " + (endTime - startTime));
+        }
     }
     public void enableChunks() {
         readyToHandleChunks = true;
@@ -171,9 +173,9 @@ public class WorldManager {
             String   party = results.getCollision(i).getGeometry().getName();
             int        tri = results.getCollision(i).getTriangleIndex();
             Vector3f  norm = results.getCollision(i).getTriangle(new Triangle()).getNormal();
-            System.out.println("Details of Collision #" + i + ":");
-            System.out.println("  Party " + party + " was hit at " + pt + ", " + dist + " wu away.");
-            System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
+            //System.out.println("Details of Collision #" + i + ":");
+            //System.out.println("  Party " + party + " was hit at " + pt + ", " + dist + " wu away.");
+            //System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
             if(party == "Cube optimized_opaque") {
                 Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
                 return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation, norm);
@@ -207,11 +209,22 @@ public class WorldManager {
         } catch(IOException ex){
             ex.printStackTrace();
         }
+
         if (blockFinished) {
             this.app.enqueue(new Callable() {
                 public Object call() throws Exception {
-                    terrainNode.removeControl(blockTerrain);
-                    terrainNode.addControl(blockTerrain);
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    long endTime;
+
+                    blockTerrain.finishChunks();
+
+                   // terrainNode.removeControl(blockTerrain);
+                    long halfTime = Calendar.getInstance().getTimeInMillis();
+                    //terrainNode.addControl(blockTerrain);
+                    endTime = Calendar.getInstance().getTimeInMillis();
+                    if (endTime - startTime > 2) {
+                        System.out.println("Block Finished took " + (endTime - startTime) + "ms half was " + (halfTime - startTime));
+                    }
                     return null;
                 }
             });
@@ -223,8 +236,8 @@ public class WorldManager {
         blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
         // TODO: Move this into terrain
         // and only do it when actually needed (first block? mesh vert count 0?)
-        terrainNode.removeControl(blockTerrain);
-        terrainNode.addControl(blockTerrain);
+        //terrainNode.removeControl(blockTerrain);
+        //terrainNode.addControl(blockTerrain);
     }
     
     public void HandleClearBlock(ClearBlock clearMessage) {
@@ -241,7 +254,7 @@ public class WorldManager {
     
     void addPhysicsControl(AbstractPhysicsControl control) {
         bulletAppState.getPhysicsSpace().add(control);
-        bulletAppState.setDebugEnabled(false);
+        bulletAppState.setDebugEnabled(true);
     }
 
     void addNodeToWorld(Node playerNode) {

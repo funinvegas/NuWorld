@@ -49,6 +49,8 @@ public class StateStartMenu extends AbstractAppState {
     @NiftyEventSubscriber(id="newGame") 
     public void onStartClick(String id, NiftyMousePrimaryClickedEvent event) {
         System.out.println("element with id [" + id + "] clicked at [" + event.getMouseX() +                     ", " + event.getMouseY() + "]"); 
+        app.startServer();
+        app.setServerConnection("localhost");
         app.startNewGame(this);
     }
 

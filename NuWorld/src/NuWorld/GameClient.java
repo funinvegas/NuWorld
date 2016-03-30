@@ -14,6 +14,7 @@ import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import java.io.IOException;
+import java.util.Calendar;
 import strongdk.jme.appstate.console.ConsoleAppState;
 
 /**
@@ -98,22 +99,33 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
             // then pull from that list without having to re-search.
             // if a chunk in the list ends up being too far away by the time its gotten too, skip it.
             // rebuild the list when it gets too short.
-            for (int i = 0; i < 3; ++i) {
+            long startTime = Calendar.getInstance().getTimeInMillis();
+            long endTime;
+            for (int i = 0; i < 6; ++i) {
                 for (int iX = 0-i; iX < i; ++iX) {
                   for (int iY = 0-i; iY < i; ++iY) {
                     for (int iZ = 0-i; iZ < i; ++iZ) {
                         Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() + iX, currentChunk.getY() + iY, currentChunk.getZ() + iZ);
                         //System.out.println("LW checking " + locationToCheck.toString());
-                        if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
+                        if (!blockTerrain.isValidChunkLocation(locationToCheck) && !blockTerrain.isPendingChunkLocation(locationToCheck)) {
                             RequestChunk requestChunk = new RequestChunk(locationToCheck);
                             //System.out.println("Requesting chunk " + locationToCheck.toString());
+                            blockTerrain.setChunkStarted(locationToCheck);
                             sendMessage(requestChunk);
+                            endTime = Calendar.getInstance().getTimeInMillis();
+                            if (endTime - startTime> 2) {
+                                System.out.println("RequestNextCunk found a block after " + (endTime - startTime));
+                            }
                             this.chunkInProgress = true;
                             return;
                         }
                     }
                   }
                 }
+            }
+            endTime = Calendar.getInstance().getTimeInMillis();
+            if (endTime - startTime> 2) {
+                System.out.println("RequestNextCunk found nothing after " + (endTime - startTime));
             }
             /*for (int iX = 0; iX < 5; ++iX) {
               for (int iY = -5; iY < 5; ++iY) {

@@ -10,6 +10,7 @@ import NuWorldServer.Messages.SetBlock;
 import NuWorldServer.Messages.SetPlayerLocation;
 import NuWorldServer.Messages.UpdatePlayerEntities;
 import com.cubes.BlockManager;
+import com.cubes.BlockTerrainControl;
 import com.cubes.Vector3Int;
 import com.jme3.app.Application;
 import com.jme3.app.state.AbstractAppState;
@@ -37,6 +38,10 @@ import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Cylinder;
 import com.jme3.system.AppSettings;
 import de.lessvoid.nifty.Nifty;
+import de.lessvoid.nifty.controls.TextField;
+import de.lessvoid.nifty.elements.Element;
+import de.lessvoid.nifty.elements.render.TextRenderer;
+import de.lessvoid.nifty.screen.Screen;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Set;
@@ -188,6 +193,21 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
         }
         app.getGameClient().requestNextChunk(app.getWorldManager().getTerrain(), player);
         //cam.setLocation(playerLoc);
+        Screen screen = nifty.getCurrentScreen();
+        Element txt;
+        txt = screen.findElementByName("DigPoint");
+        if (txt != null) {
+            Vector3Int clearBlock = app.getWorldManager().getCurrentPointedBlockLocation(false);
+            if (clearBlock != null) {
+                txt.getRenderer(TextRenderer.class).setText("clearBlock(" + BlockTerrainControl.keyify(clearBlock) + ")");
+            }
+            txt = screen.findElementByName("PlacePoint");
+            Vector3Int setBlock = app.getWorldManager().getCurrentPointedBlockLocation(true);
+            if (setBlock != null) {
+                txt.getRenderer(TextRenderer.class).setText("setBlock(" + BlockTerrainControl.keyify(setBlock) + ")");
+            }
+            //txt.setText("HELLOO..");
+        }
     }
     private void initControls(){
         // Setup inputs so player can control their movement
@@ -310,7 +330,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                                 playerControl.warp(new Vector3f(5, 35, 5).mult(blockSize));
 
                                 player.getNode().addControl(cam);
-    */
+                                */
 
 
 
@@ -352,4 +372,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
            app.getGameClient().requestNextChunk(app.getWorldManager().getTerrain(), player);
        }
        
-    }}
+      
+    }
+
+      
+}
