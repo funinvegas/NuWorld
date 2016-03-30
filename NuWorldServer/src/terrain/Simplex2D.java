@@ -84,7 +84,7 @@ public class Simplex2D implements TerrainGenerator
             for (int z = 0; z < chunkSizeZ; z++)
             {
                 //chunk.setBlock(new Vector3Int(x, 0, z), CubeAssets.BLOCK_BRICK);
-                chunk.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_BRICK);
+                //chunk.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_BRICK);
                 Double c = sumOctave(TerrainGeneratorFactory.ITERATIONS, x+offset.getX(), z+offset.getZ(), TerrainGeneratorFactory.PERSISTENCE, TerrainGeneratorFactory.SIMPLEX_SCALE);
                 c = normalize(c, 1, 45/*chunkSizeY TODO: Understand this*/ );
                 c -= chunkSizeY * chunkLocation.getY();

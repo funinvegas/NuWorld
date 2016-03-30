@@ -49,7 +49,7 @@ public class PlayerClient {
         Vector3Int chunkAtPlayer = server.getChunkAtLocation(defaultStartingLocation);
         playerWorldLocation = defaultStartingLocation;
         lastPlayerChunkLocation = chunkAtPlayer;
-        int range = 3;
+        /*int range = 3;
         for(int x = Math.max(0, chunkAtPlayer.getX() - range); x <= chunkAtPlayer.getX() + range; ++x) {
             //for(int y = chunkAtPlayer.getY() - range; y <= chunkAtPlayer.getY() + range; ++y) {
                 for(int z = Math.max(0, chunkAtPlayer.getZ() - range); z <= chunkAtPlayer.getZ() + range; ++z) {
@@ -62,7 +62,7 @@ public class PlayerClient {
                     }
                 }
             //}
-        }
+        }*/
         sendPlayerLocation();
     }
      public void teleportPlayer(Vector3f newPlayerLocation) {   

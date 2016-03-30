@@ -251,6 +251,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
             Vector3Int blockLocation = app.getWorldManager().getCurrentPointedBlockLocation(true);
             if(blockLocation != null){
                 SetBlock message = new SetBlock(blockLocation, BlockManager.getType(CubeAssets.BLOCK_WOOD));
+                System.out.println("Sending SetBlock");
                 app.getGameClient().sendMessage(message);
                 //blockTerrain.setBlock(blockLocation, CubeAssets.BLOCK_WOOD);
             }
