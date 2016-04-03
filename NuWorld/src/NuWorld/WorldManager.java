@@ -142,7 +142,7 @@ public class WorldManager {
         CubeAssets.initializeEnvironment(this.app);
         
         CubesSettings cubesSettings = gameSettings.getCubesSettings();
-        blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(7, 1, 7));
+        blockTerrain = new BlockTerrainControl(cubesSettings);
 
         
         //To set a block, just specify the location and the block object

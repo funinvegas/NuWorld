@@ -203,7 +203,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
         CubeAssets.initializeEnvironment(null);
         
         cubesSettings = CubeAssets.getSettings(null);
-        blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(2, 1, 2));
+        blockTerrain = new BlockTerrainControl(cubesSettings);
         //blockTerrain.setBlocksFromNoise(new Vector3Int(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
         /*for (int iX = 0; iX < 50; ++iX) {
             for (int iY = 0; iY < 30; ++iY) {
