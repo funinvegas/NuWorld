@@ -16,6 +16,7 @@ import com.cubes.Vector3Int;
 import com.cubes.shapes.BlockShape_Cube;
 import com.cubes.shapes.BlockShape_Cuboid;
 import com.cubes.shapes.BlockShape_Pyramid;
+import com.cubes.shapes.BlockShape_Rhombicuboctahedron;
 import com.jme3.app.Application;
 import com.jme3.app.SimpleApplication;
 import com.jme3.light.DirectionalLight;
@@ -35,13 +36,15 @@ public class CubeAssets {
         settings.setDefaultBlockMaterial("Textures/cubes/terrain.png");
         return settings;
     }
-    
+
     public static final Block BLOCK_GRASS = new Block(new BlockSkin[]{
             new BlockSkin(new BlockSkin_TextureLocation(0, 0), false),
             new BlockSkin(new BlockSkin_TextureLocation(1, 0), false),
             new BlockSkin(new BlockSkin_TextureLocation(2, 0), false)
         }){
-
+    {
+        setShapes(new BlockShape_Rhombicuboctahedron());
+    }
         @Override
         protected int getSkinIndex(BlockChunkControl chunk, Vector3Int location, Block.Face face){
             if(chunk.isBlockOnSurface(location)){
@@ -65,7 +68,10 @@ public class CubeAssets {
         new BlockSkin(new BlockSkin_TextureLocation(3, 0), false),
         new BlockSkin(new BlockSkin_TextureLocation(3, 0), false)
     };
-    public static Block BLOCK_WOOD = new Block(SKINS_WOOD);
+    //public static Block BLOCK_WOOD = new Block(SKINS_WOOD);
+    public static Block BLOCK_WOOD = new Block(SKINS_WOOD){{
+        setShapes(new BlockShape_Rhombicuboctahedron());
+    }};
     public static Block BLOCK_WOOD_FLAT = new Block(SKINS_WOOD){{
         setShapes(new BlockShape_Cuboid(new float[]{0, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}));
     }};

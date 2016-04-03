@@ -1,6 +1,7 @@
 package NuWorld;
 
 import NuWorldServer.Messages.SetupMessages;
+import NuWorldServer.NuWorldServer;
 import com.cubes.BlockChunkControl;
 import com.cubes.BlockChunkListener;
 import com.cubes.BlockNavigator;
@@ -305,5 +306,10 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
 
     ConsoleAppState getConsoleAppState() {
         return console;
+    }
+    NuWorldServer server;
+    void startServer() {
+        server = new NuWorldServer(console);
+        server.Start();
     }
 }

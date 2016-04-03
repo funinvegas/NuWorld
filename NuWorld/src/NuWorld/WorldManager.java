@@ -35,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.concurrent.Callable;
 
 
 /**
@@ -63,6 +64,7 @@ public class WorldManager {
     private final NuWorldMain app;
     
     private EntityManager entityManager;
+    private PlayerEntity primaryEntity;
     
     public WorldManager(AppStateManager stateManager, Application ap) {
         this.stateManager = stateManager;
@@ -77,7 +79,8 @@ public class WorldManager {
         }
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-2f * gameSettings.getCubesSettings().getBlockSize(),0));
         initBlockTerrain();
         
         if (entityManager != null) {
@@ -86,9 +89,11 @@ public class WorldManager {
         entityManager = new EntityManager(this);
         //cam.lookAtDirection(new Vector3f(1, 0, 1), Vector3f.UNIT_Y);
     }
-    private HashMap<String, BlockChunkControl> chunksToRender = new HashMap<String, BlockChunkControl>();
+    private HashMap<Vector3Int, BlockChunkControl> chunksToRender = new HashMap<Vector3Int, BlockChunkControl>();
     private boolean readyToHandleChunks = false;
     private void updateChunk(BlockChunkControl blockChunk) {
+        long startTime = Calendar.getInstance().getTimeInMillis();
+        long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
         RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
         if (rigidBodyControl != null) {
@@ -96,28 +101,48 @@ public class WorldManager {
             bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
         }
         //if(rigidBodyControl == null){
-        rigidBodyControl = new RigidBodyControl(0);
-        optimizedGeometry.addControl(rigidBodyControl);
-        bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+        if (optimizedGeometry.getMesh().getVertexCount() > 0) {
+            rigidBodyControl = new RigidBodyControl(0);
+            optimizedGeometry.addControl(rigidBodyControl);
+            bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+            rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+        }
         //}
-        rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
         //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
         //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
         //playerControl.warp(new Vector3f(0,0,0));
+        endTime = Calendar.getInstance().getTimeInMillis();
+        if (endTime - startTime > 16) {
+            System.out.println("updateChunk took " + (endTime - startTime));
+        }
+    }
+    private void removeChunk(BlockChunkControl blockChunk) {
+        long startTime = Calendar.getInstance().getTimeInMillis();
+        long endTime;
+        Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
+        RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
+        if (rigidBodyControl != null) {
+            optimizedGeometry.removeControl(rigidBodyControl);
+            bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
+        }
+        endTime = Calendar.getInstance().getTimeInMillis();
+        if (endTime - startTime > 16) {
+            System.out.println("removeChunk took " + (endTime - startTime));
+        }
     }
     public void enableChunks() {
         readyToHandleChunks = true;
-        for (String i : chunksToRender.keySet()) {
+        for (Vector3Int i : chunksToRender.keySet()) {
             updateChunk (chunksToRender.get(i));
         }
-        chunksToRender = new HashMap<String, BlockChunkControl>();
+        chunksToRender = new HashMap<Vector3Int, BlockChunkControl>();
     }
     private void initBlockTerrain(){
         CubeAssets.registerBlocks();
         CubeAssets.initializeEnvironment(this.app);
         
         CubesSettings cubesSettings = gameSettings.getCubesSettings();
-        blockTerrain = new BlockTerrainControl(cubesSettings, new Vector3Int(7, 1, 7));
+        blockTerrain = new BlockTerrainControl(cubesSettings);
 
         
         //To set a block, just specify the location and the block object
@@ -136,10 +161,14 @@ public class WorldManager {
                 if (readyToHandleChunks) {
                     updateChunk(blockChunk);
                 } else {
-                    chunksToRender.put(blockTerrain.keyify(blockChunk.getBlockLocation()), blockChunk);
+                    chunksToRender.put(blockChunk.getBlockLocation(), blockChunk);
                 }
-
             }
+            @Override
+            public void onSpatialRemoved(BlockChunkControl chunk) {
+                removeChunk(chunk);
+            }
+
         });
         terrainNode.addControl(blockTerrain);
         terrainNode.setShadowMode(RenderQueue.ShadowMode.CastAndReceive);
@@ -161,12 +190,12 @@ public class WorldManager {
             String   party = results.getCollision(i).getGeometry().getName();
             int        tri = results.getCollision(i).getTriangleIndex();
             Vector3f  norm = results.getCollision(i).getTriangle(new Triangle()).getNormal();
-            System.out.println("Details of Collision #" + i + ":");
-            System.out.println("  Party " + party + " was hit at " + pt + ", " + dist + " wu away.");
-            System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
+            //System.out.println("Details of Collision #" + i + ":");
+            //System.out.println("  Party " + party + " was hit at " + pt + ", " + dist + " wu away.");
+            //System.out.println("  The hit triangle #" + tri + " has a normal vector of " + norm);
             if(party == "Cube optimized_opaque") {
                 Vector3f collisionContactPoint = results.getClosestCollision().getContactPoint();
-                return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation);
+                return BlockNavigator.getPointedBlockLocation(blockTerrain, pt, getNeighborLocation, norm);
             }
         }
 
@@ -187,17 +216,46 @@ public class WorldManager {
     public void HandleResetChunk(ResetChunk resetChunk) {
         //System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host" );
         BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
+        boolean blockFinished = false;
         try {
-            blockTerrain.readChunkPartial(bitInputStream);
+            blockFinished = blockTerrain.readChunkPartial(bitInputStream);
+            if (blockFinished && primaryEntity != null) {
+                app.getGameClient().setBlockFinished();
+                app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
+            }
         } catch(IOException ex){
             ex.printStackTrace();
         }
-        terrainNode.removeControl(blockTerrain);
-        terrainNode.addControl(blockTerrain);
+
+        if (blockFinished) {
+            this.app.enqueue(new Callable() {
+                public Object call() throws Exception {
+                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    long endTime;
+
+                    blockTerrain.finishChunks();
+
+                   // terrainNode.removeControl(blockTerrain);
+                    long halfTime = Calendar.getInstance().getTimeInMillis();
+                    //terrainNode.addControl(blockTerrain);
+                    endTime = Calendar.getInstance().getTimeInMillis();
+                    if (endTime - startTime > 2) {
+                        System.out.println("Block Finished took " + (endTime - startTime) + "ms half was " + (halfTime - startTime));
+                    }
+                    return null;
+                }
+            });
+            
+        }
     }
     
     public void HandleSetBlock(SetBlock setMessage) {
+        System.out.println("Handling SetBlock true");
         blockTerrain.setBlock(setMessage.getBlock(), BlockManager.getBlock((byte)setMessage.getBlockID()));
+        // TODO: Move this into terrain
+        // and only do it when actually needed (first block? mesh vert count 0?)
+        //terrainNode.removeControl(blockTerrain);
+        //terrainNode.addControl(blockTerrain);
     }
     
     public void HandleClearBlock(ClearBlock clearMessage) {
@@ -219,6 +277,15 @@ public class WorldManager {
 
     void addNodeToWorld(Node playerNode) {
         terrainNode.attachChild(playerNode);
+    }
+
+    void setPrimaryEntity(PlayerEntity player) {
+        this.primaryEntity = player;
+        app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
+    }
+    
+    BlockTerrainControl getTerrain() {
+        return blockTerrain;
     }
 
 }
