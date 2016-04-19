@@ -39,12 +39,12 @@ public class PlayerEntity {
         return control;
     }
 
-    Vector3f getLocation() {
+    public Vector3f getLocation() {
         return node.getWorldTranslation();
     }
     
 
-    void removeControl() {
+    public void removeControl() {
         if (this.control != null) {
             node.removeControl(this.control);
         }

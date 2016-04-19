@@ -34,7 +34,7 @@ public class SetBlock extends AbstractMessage {
     //    return chunkLocation;
     //}
     public Vector3Int getBlock() {
-        return new Vector3Int(blockLocX, blockLocY, blockLocZ);
+        return Vector3Int.create(blockLocX, blockLocY, blockLocZ);
     }
     public int getBlockID() {
         return blockID;

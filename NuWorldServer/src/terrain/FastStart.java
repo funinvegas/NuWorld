@@ -29,7 +29,7 @@ public class FastStart implements TerrainGenerator
         {
             for (int z = 0+offset.getZ(); z < offset.getZ() + size.getZ(); z++)
             {
-                Vector3Int chunkLocation = new Vector3Int(x, 0, z);
+                Vector3Int chunkLocation = Vector3Int.create(x, 0, z);
                 BlockChunkControl c = generateChunk(terrain, chunkLocation, cubeSettings);
                 terrainControl.setChunk(chunkLocation, c);
             }
@@ -55,7 +55,7 @@ public class FastStart implements TerrainGenerator
         {
             for (int z = 0; z < settings.getChunkSizeZ(); z++)
             {
-                chunk.setBlock(new Vector3Int(x, 0, z), block);
+                chunk.setBlock(Vector3Int.create(x, 0, z), block);
             }
         }
         return chunk;

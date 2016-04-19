@@ -30,6 +30,6 @@ public class RequestChunk extends AbstractMessage {
         z = chunk.getZ();
     }
     public Vector3Int getChunkLoc() {
-        return new Vector3Int(x,y,z);
+        return Vector3Int.create(x,y,z);
     }
 }

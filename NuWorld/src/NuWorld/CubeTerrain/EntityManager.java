@@ -2,8 +2,9 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package NuWorld;
+package NuWorld.CubeTerrain;
 
+import NuWorld.PlayerEntity;
 import com.jme3.bullet.control.AbstractPhysicsControl;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
@@ -49,11 +50,11 @@ public class EntityManager {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    PlayerEntity getPlayerEntity(String playerName) {
+    public PlayerEntity getPlayerEntity(String playerName) {
         return playerEntities.get(playerName);
     }
 
-    void prunePlayers(Set<String> nameSet) {
+    public void prunePlayers(Set<String> nameSet) {
         for(String key : playerEntities.keySet()) {
             if (!nameSet.contains(key)) {
                 removePlayerEntity(key);

@@ -46,7 +46,7 @@ public class Simplex3D implements TerrainGenerator
         {
             for (int z = 0 + offset.getZ(); z < offset.getZ() + chunkViewDistance.getZ(); z++)
             {
-                Vector3Int chunkLocation = new Vector3Int(x, 0, z);
+                Vector3Int chunkLocation = Vector3Int.create(x, 0, z);
                 BlockChunkControl c = generateChunk(terrain, chunkLocation, cubeSettings);
                 terrainControl.setChunk(chunkLocation, c);
             }
@@ -148,7 +148,7 @@ public class Simplex3D implements TerrainGenerator
                             {
                                 place = Blocks.IRON_ORE;
                             }*/
-                            chunk.setBlock(new Vector3Int(x, y, z), place);
+                            chunk.setBlock(Vector3Int.create(x, y, z), place);
                     /*}
                     if(c>.4)
                     {
@@ -161,7 +161,7 @@ public class Simplex3D implements TerrainGenerator
                 }
                 if(chunkLocation.getY() == 0)
                 {
-                    chunk.setBlock(new Vector3Int(x, 0, z), CubeAssets.BLOCK_BRICK);
+                    chunk.setBlock(Vector3Int.create(x, 0, z), CubeAssets.BLOCK_BRICK);
                 }
 
             }

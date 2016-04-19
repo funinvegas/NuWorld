@@ -17,6 +17,9 @@ import com.cubes.BlockNavigator;
 import com.cubes.BlockTerrainControl;
 import com.cubes.CubesSettings;
 import com.cubes.Vector3Int;
+import com.jme3.bullet.collision.shapes.CapsuleCollisionShape;
+import com.jme3.bullet.collision.shapes.CollisionShape;
+import com.jme3.bullet.collision.shapes.CompoundCollisionShape;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
@@ -57,12 +60,12 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
 
     public void logError(String text) {
         console.appendConsoleError(text);
-        System.err.printf(text);
+        System.err.println(text);
     }
     
     public void logOutput(String text) {
         console.appendConsole(text);
-        System.out.printf(text);
+        System.out.println(text);
     }
     private final int SERVER_PORT = 6143;
     
@@ -92,13 +95,14 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     }
 
     public Vector3f getDefaultPlayerStartLocation() {
-        /*Vector3Int zero = new Vector3Int(0,0,0);
+        /*Vector3Int zero = Vector3Int.create(0,0,0);
         this.ensureChunk(zero);
         BlockChunkControl startingChunk = blockTerrain.getChunkByBlockLocation(zero);
         startingChunk.get
         */
-        return new Vector3f(8, 255, 8).mult(cubesSettings.getBlockSize());
+        return new Vector3f(100, 100, 100).mult(cubesSettings.getBlockSize());
     }
+    
 
     public void connectionAdded(Server server, HostedConnection conn) {
         logOutput("Connection Received");
@@ -164,7 +168,7 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
     private CubesSettings cubesSettings;
     private BlockTerrainControl blockTerrain;
     private ServerEntities entityManager;
-    private final Vector3Int TERRAIN_SIZE = new Vector3Int(30, 30, 30);
+    private final Vector3Int TERRAIN_SIZE = Vector3Int.create(30, 30, 30);
     
     public Vector3Int getChunkAtLocation(Vector3f defaultStartingLocation) {
         // Send chunks in 5 chunks all around
@@ -173,9 +177,6 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
         return chunkAtPlayer;
     }
     public BlockChunkControl getChunkAt(Vector3Int chunkLoc) {
-        if (!blockTerrain.isValidChunkLocation(chunkLoc)) {
-            return null;
-        }
         return blockTerrain.getChunkByBlockLocation(chunkLoc);
     }
     
@@ -185,9 +186,25 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
                 ArrayList<byte[]> slices = blockTerrain.writeChunkPartials(chunk);
 
                 // The terrain renderer doesn't like building from 0->256
-                logOutput("Sending Chunk Slices" + chunk.getX() + ", " + chunk.getY() + ", " + chunk.getZ());
-                for (int i = slices.size() - 1; i >= 0 ; --i) {
-                    ResetChunk resetMessage = new ResetChunk(slices.get(i));
+                //logOutput("Sending Chunk Slices" + chunk.getX() + ", " + chunk.getY() + ", " + chunk.getZ());
+                for (int i = slices.size() - 1; i >= 0;) {
+                    byte [] s1 = null;
+                    byte [] s2 = null;
+                    byte [] s3 = null;
+                    byte [] s4 = null;
+                    if ( i >= 0) {
+                        s1 = slices.get(i--);
+                    }
+                    if ( i >= 0) {
+                        s2 = slices.get(i--);
+                    }
+                    if ( i >= 0) {
+                        s3 = slices.get(i--);
+                    }
+                    if ( i >= 0) {
+                        s4 = slices.get(i--);
+                    }
+                    ResetChunk resetMessage = new ResetChunk(s1,s2,s3,s4);
                     conn.send(resetMessage);
                 }
                 return true;
@@ -204,11 +221,11 @@ public class NuWorldServer implements ConnectionListener, MessageListener<Hosted
         
         cubesSettings = CubeAssets.getSettings(null);
         blockTerrain = new BlockTerrainControl(cubesSettings);
-        //blockTerrain.setBlocksFromNoise(new Vector3Int(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        //blockTerrain.setBlocksFromNoise(Vector3Int.create(),  TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
         /*for (int iX = 0; iX < 50; ++iX) {
             for (int iY = 0; iY < 30; ++iY) {
                 for (int iZ = 0; iZ < 50; ++iZ) {
-                    blockTerrain.setBlock(new Vector3Int(iX, iY, iZ), CubeAssets.BLOCK_GRASS);
+                    blockTerrain.setBlock(Vector3Int.create(iX, iY, iZ), CubeAssets.BLOCK_GRASS);
                 }
             }
         }*/

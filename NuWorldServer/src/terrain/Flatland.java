@@ -49,7 +49,7 @@ public class Flatland implements TerrainGenerator
             for (int z = 0 + offset.getZ(); z < offset.getZ() + chunkViewDistance.getZ(); z++)
             {
                 System.out.print(".");
-                Vector3Int chunkLocation = new Vector3Int(x, 0, z);
+                Vector3Int chunkLocation = Vector3Int.create(x, 0, z);
                 BlockChunkControl c = generateChunk(terrain, chunkLocation, cubeSettings);
                 terrainControl.setChunk(chunkLocation, c);
             }
@@ -126,11 +126,11 @@ public class Flatland implements TerrainGenerator
                         }
                     }
                     * */
-                    chunk.setBlock(new Vector3Int(x, y, z), place);
+                    chunk.setBlock(Vector3Int.create(x, y, z), place);
                 }
                 if(chunkLocation.getY() == 0)
                 {
-                    chunk.setBlock(new Vector3Int(x, 0, z), CubeAssets.BLOCK_STONE);
+                    chunk.setBlock(Vector3Int.create(x, 0, z), CubeAssets.BLOCK_STONE);
                 }
 
             }

@@ -1,5 +1,10 @@
 package NuWorld;
 
+import NuWorld.Networking.GameClient;
+import NuWorld.CubeTerrain.WorldManager;
+import NuWorld.StateControl.StateConnecting;
+import NuWorld.StateControl.StateStartMenu;
+import NuWorld.StateControl.StateRunningGame;
 import NuWorldServer.Messages.SetupMessages;
 import NuWorldServer.NuWorldServer;
 import com.cubes.BlockChunkControl;
@@ -88,7 +93,7 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
     // "The" world
     // can be reset between game instances
     private WorldManager worldManager;
-    private GameSettings gameSettings;
+    private GameSingletons gameSettings;
     
     public WorldManager getWorldManager() {
         return worldManager;
@@ -225,7 +230,7 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         initGUI();
         StateStartMenu startScreenState = new StateStartMenu();
         stateManager.attach(startScreenState);
-        gameSettings = new GameSettings(this);
+        gameSettings = new GameSingletons(this, this.console);
         worldManager = new WorldManager(stateManager, this);
 
         /*Box b = new Box(1, 1, 1);
@@ -296,19 +301,19 @@ public class NuWorldMain extends SimpleApplication implements ScreenController, 
         gameClient.addMessageListener(clientListener);
     }
 
-    GameClient getGameClient() {
+    public GameClient getGameClient() {
         return this.gameClient;
     }
 
-    GameSettings getGameSettings() {
+    public GameSingletons getGameSettings() {
         return gameSettings;
     }
 
-    ConsoleAppState getConsoleAppState() {
+    public ConsoleAppState getConsoleAppState() {
         return console;
     }
     NuWorldServer server;
-    void startServer() {
+    public void startServer() {
         server = new NuWorldServer(console);
         server.Start();
     }

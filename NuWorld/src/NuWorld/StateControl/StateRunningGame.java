@@ -2,8 +2,13 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package NuWorld;
+package NuWorld.StateControl;
 
+import NuWorld.CubeTerrain.CubeAssets;
+import NuWorld.CubeTerrain.EntityManager;
+import NuWorld.NuWorldMain;
+import NuWorld.PlayerController;
+import NuWorld.PlayerEntity;
 import NuWorldServer.Messages.ClearBlock;
 import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
@@ -15,7 +20,6 @@ import com.cubes.Vector3Int;
 import com.jme3.app.Application;
 import com.jme3.app.state.AbstractAppState;
 import com.jme3.app.state.AppStateManager;
-import com.jme3.bullet.control.BetterCharacterControl;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
@@ -60,8 +64,6 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     Nifty nifty;
     NuWorldMain app;
     
-    // Track the up/down state of the direction inputs
-    private boolean[] arrowKeys = new boolean[4];
     
     private InputManager inputManager;
     
@@ -69,7 +71,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     private Vector3f walkDirection;
 
     // Physics controler for the player
-    private BetterCharacterControl playerControl;
+    private PlayerController playerControl;
     private ChaseCamera cam;
     PlayerEntity playerEntity;
     
@@ -117,7 +119,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     private void initPlayer(String playerName){
         float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
         //playerControl = new BetterCharacterControl(new CapsuleCollisionShape((cubesSettings.getBlockSize() / 2), cubesSettings.getBlockSize() * 2), 0.05f);
-        playerControl = new BetterCharacterControl(blockSize / 2, blockSize * 2, 0.05f);
+        playerControl = new PlayerController(inputManager, app.getCamera(), blockSize, blockSize / 3, blockSize * 2, 0.05f);
         playerControl.setJumpForce(new Vector3f(0,0.4f * blockSize,0));
         player = new PlayerEntity(playerName); 
         //Node playerNode = player.getNode();
@@ -172,24 +174,8 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
             lastPlayerUpdate = updateTime;
             if (playerName != null) {
                 SetPlayerLocation locationMessage = new SetPlayerLocation(playerName, player.getLocation());
-                app.gameClient.sendMessage(locationMessage);
+                app.getGameClient().sendMessage(locationMessage);
             }
-        }
-        float blockSize = app.getGameSettings().getCubesSettings().getBlockSize();
-        float playerMoveSpeed = ((blockSize * 360.5f) * tpf);
-        Vector3f camDir = app.getCamera().getDirection().mult(playerMoveSpeed);
-        Vector3f camLeft = app.getCamera().getLeft().mult(playerMoveSpeed);
-        walkDirection.set(0, 0, 0);
-        if(arrowKeys[0]){ walkDirection.addLocal(camDir); }
-        if(arrowKeys[1]){ walkDirection.addLocal(camLeft.negate()); }
-        if(arrowKeys[2]){ walkDirection.addLocal(camDir.negate()); }
-        if(arrowKeys[3]){ walkDirection.addLocal(camLeft); }
-        //walkDirection.setY(0);
-        if (playerControl != null) {
-            playerControl.setWalkDirection(walkDirection);
-            Vector3f playerLoc = player.getNode().getWorldTranslation();
-            playerLoc.setY(playerLoc.getY() + blockSize * 1.5f);
-            playerLoc = playerLoc.add(camDir.normalize().mult(blockSize * -0.5f));
         }
         app.getGameClient().requestNextChunk(app.getWorldManager().getTerrain(), player);
         //cam.setLocation(playerLoc);
@@ -212,42 +198,24 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
     private void initControls(){
         // Setup inputs so player can control their movement
         //inputManager.deleteMapping( SimpleApplication.INPUT_MAPPING_EXIT );
+        // TODO: Move this to a keyboard mapping manager so it can be configured in the future
         inputManager.addMapping("move_left", new KeyTrigger(KeyInput.KEY_A));
-        inputManager.addListener(this, "move_left");
         inputManager.addMapping("move_right", new KeyTrigger(KeyInput.KEY_D));
-        inputManager.addListener(this, "move_right");
         inputManager.addMapping("move_up", new KeyTrigger(KeyInput.KEY_W));
-        inputManager.addListener(this, "move_up");
         inputManager.addMapping("move_down", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addListener(this, "move_down");
         inputManager.addMapping("jump", new KeyTrigger(KeyInput.KEY_SPACE), new KeyTrigger(KeyInput.KEY_J));
-        inputManager.addListener(this, "jump");
+        inputManager.addMapping("crouch", new KeyTrigger(KeyInput.KEY_LSHIFT), new KeyTrigger(KeyInput.KEY_C));
+
         inputManager.addMapping("set_block", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        inputManager.addListener(this, "set_block");
         inputManager.addMapping("remove_block", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+        inputManager.addListener(this, "set_block");
         inputManager.addListener(this, "remove_block");
     }
     
     @Override
     public void onAction(String actionName, boolean value, float lastTimePerFrame){
-        if(actionName.equals("move_up")){
-            arrowKeys[0] = value; // TODO Magic number directions
-        }
-        else if(actionName.equals("move_right")){
-            arrowKeys[1] = value;
-        }
-        else if(actionName.equals("move_left")){
-            arrowKeys[3] = value;
-        }
-        else if(actionName.equals("move_down")){
-            arrowKeys[2] = value;
-        }
-        else if(actionName.equals("jump")){
-            if (value) {
-                playerControl.jump();
-            }
-        }
-        else if(actionName.equals("set_block") && value){
+        // TODO: figure out how set_block should be organized once we have inventory /tools
+        if(actionName.equals("set_block") && value){
             Vector3Int blockLocation = app.getWorldManager().getCurrentPointedBlockLocation(true);
             if(blockLocation != null){
                 SetBlock message = new SetBlock(blockLocation, BlockManager.getType(CubeAssets.BLOCK_WOOD));
@@ -342,7 +310,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
                     }
                     endTime = Calendar.getInstance().getTimeInMillis();
                     if (endTime - startTime > 16) {
-                        System.err.println(messageName + " took " + (endTime - startTime) + "ms");
+                        System.err.println(messageName + " System.currentTimeMillis() " + (endTime - startTime) + "ms");
                     }
                     return null;
                 }
@@ -362,7 +330,7 @@ public class StateRunningGame extends AbstractAppState implements ActionListener
            console.appendConsole("Attempting to port player to " + x + ", " + y + ", " + z);
            if (x != null && y != null && z != null) {
                Vector3f vf = new Vector3f(x,y,z);
-               ((BetterCharacterControl)app.getWorldManager().getEntityManager().getPlayerEntity(playerName).getControl()).warp(vf);
+               ((PlayerController)app.getWorldManager().getEntityManager().getPlayerEntity(playerName).getControl()).warp(vf);
            }
          
        } else if (evt.getCommand().equals("/loc")) {

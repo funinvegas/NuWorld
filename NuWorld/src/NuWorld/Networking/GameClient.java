@@ -2,10 +2,12 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package NuWorld;
+package NuWorld.Networking;
 
+import NuWorld.PlayerEntity;
 import NuWorldServer.Messages.RequestChunk;
 import NuWorldServer.Messages.SetBlock;
+import com.cubes.BlockChunkControl;
 import com.cubes.BlockTerrainControl;
 import com.cubes.Vector3Int;
 import com.jme3.network.Client;
@@ -85,44 +87,69 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
         //logOutput("(Generic Handler) Message received " + m.toString());
     }
 
-    void sendMessage(Message message) {
+    public void sendMessage(Message message) {
         if (client != null && client.isConnected()) {
             client.send(message);
         } else {
             System.err.println("Attempting to send message " + message.toString() + " to closed connection");
         }
     }
-    void requestNextChunk(BlockTerrainControl blockTerrain, PlayerEntity primaryEntity) {
+    private boolean checkBlock(BlockTerrainControl blockTerrain, Vector3Int currentChunk, int iX, int iY, int iZ) {
+        Vector3Int locationToCheck = Vector3Int.create(currentChunk.getX() + iX, currentChunk.getY() + iY, currentChunk.getZ() + iZ);
+        //System.out.println("LW checking " + locationToCheck.toString());
+        if (!blockTerrain.isValidChunkLocation(locationToCheck) && !blockTerrain.isPendingChunkLocation(locationToCheck)) {
+            RequestChunk requestChunk = new RequestChunk(locationToCheck);
+            System.out.println("Requesting " + BlockTerrainControl.keyify(locationToCheck));
+            //System.out.println("Requesting chunk " + locationToCheck.toString());
+            sendMessage(requestChunk);
+            blockTerrain.readUnlock("requestNextChunk");
+            blockTerrain.setChunkStarted(locationToCheck);
+            return true;
+        }
+        Vector3Int.dispose(locationToCheck);
+        return false;
+    }
+    public void requestNextChunk(BlockTerrainControl blockTerrain, PlayerEntity primaryEntity) {
             if (blockTerrain != null && primaryEntity != null && !blockTerrain.getChunksInProgress()) {
                 Vector3Int currentChunk = blockTerrain.worldLocationToChunkLocation(primaryEntity.getLocation());
                 blockTerrain.cullChunks(currentChunk, 10);
                 //System.out.println("player loc is " + currentChunk.toString());
                 // TODO: Path find reachable chunks ahead of chunks that would require digging thru chunks
-                long startTime = Calendar.getInstance().getTimeInMillis();
+                long startTime = System.currentTimeMillis();
                 long endTime;
-                for (int i = 0; i < 6; ++i) {
-                    for (int iX = 0-i; iX < i; ++iX) {
-                      for (int iY = 0-i; iY < i; ++iY) {
-                        for (int iZ = 0-i; iZ < i; ++iZ) {
-                            Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() + iX, currentChunk.getY() + iY, currentChunk.getZ() + iZ);
-                            //System.out.println("LW checking " + locationToCheck.toString());
-                            if (!blockTerrain.isValidChunkLocation(locationToCheck) && !blockTerrain.isPendingChunkLocation(locationToCheck)) {
-                                RequestChunk requestChunk = new RequestChunk(locationToCheck);
-                                System.out.println("Requesting " + BlockTerrainControl.keyify(locationToCheck));
-                                //System.out.println("Requesting chunk " + locationToCheck.toString());
-                                blockTerrain.setChunkStarted(locationToCheck);
-                                sendMessage(requestChunk);
-                                endTime = Calendar.getInstance().getTimeInMillis();
-                                if (endTime - startTime> 2) {
-                                    System.out.println("RequestNextCunk found a block after " + (endTime - startTime));
+                boolean hasLock = blockTerrain.readLockTry("requestNextChunk", 5); 
+                if (hasLock) {
+                    try {
+                        if (blockTerrain.pendingChunkCount() == 0) {
+                            int blockDistance = 6; 
+                            for (int i = 0; i < blockDistance; ++i) {
+                                for (int iX = -i; iX <= i; ++iX) {
+                                  for (int iY = -i; iY <= i; ++iY) {
+                                    for (int iZ = -i; iZ <= i; ++iZ) {
+                                        if ((iX == -i || iX == i || 
+                                             iY == -i || iY == i || 
+                                             iZ == -i || iZ == i) && checkBlock(blockTerrain, currentChunk, iX, iY, iZ)) {
+                                            endTime = System.currentTimeMillis();
+                                            if (endTime - startTime> 2) {
+                                                System.out.println("RequestNextCunk found a block after " + (endTime - startTime));
+                                            }
+                                            hasLock = false;
+                                            return;
+                                        }
+                                    }
+                                  }
                                 }
-                                return;
                             }
                         }
-                      }
+                    }
+                    finally {
+                        if (hasLock) {
+                            blockTerrain.readUnlock("requestNextChunk"); 
+                        }
                     }
                 }
-                endTime = Calendar.getInstance().getTimeInMillis();
+
+                endTime = System.currentTimeMillis();
                 if (endTime - startTime> 2) {
                     System.out.println("RequestNextCunk found nothing after " + (endTime - startTime));
                 }
@@ -131,7 +158,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
                     for (int iZ = 0; iZ < 5; ++iZ) {
                         // left wall
                         for( int i = 0; i < iZ * 2; ++i) {
-                            Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX, currentChunk.getY() + iY, currentChunk.getZ() - iZ + i);
+                            Vector3Int locationToCheck = Vector3Int.create(currentChunk.getX() - iX, currentChunk.getY() + iY, currentChunk.getZ() - iZ + i);
                             //System.out.println("LW checking " + locationToCheck.toString());
                             if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
                                 RequestChunk requestChunk = new RequestChunk(locationToCheck);
@@ -142,7 +169,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
                         } 
                         // right wall
                         for( int i = 0; i < iZ * 2; ++i) {
-                            Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() + iX, currentChunk.getY(), currentChunk.getZ() - iZ + i);
+                            Vector3Int locationToCheck = Vector3Int.create(currentChunk.getX() + iX, currentChunk.getY(), currentChunk.getZ() - iZ + i);
                             //System.out.println("RW checking " + locationToCheck.toString());
                             if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
                                 RequestChunk requestChunk = new RequestChunk(locationToCheck);
@@ -153,7 +180,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
                         } 
                         // top wall
                         for( int i = 0; i < iZ * 2; ++i) {
-                            Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() - iZ);
+                            Vector3Int locationToCheck = Vector3Int.create(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() - iZ);
                             //System.out.println("TW checking " + locationToCheck.toString());
                             if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
                                 RequestChunk requestChunk = new RequestChunk(locationToCheck);
@@ -164,7 +191,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
                         } 
                         // bottom wall
                         for( int i = 0; i < iZ * 2; ++i) {
-                            Vector3Int locationToCheck = new Vector3Int(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() + iZ);
+                            Vector3Int locationToCheck = Vector3Int.create(currentChunk.getX() - iX + i, currentChunk.getY(), currentChunk.getZ() + iZ);
                             //System.out.println("BW checking " + locationToCheck.toString());
                             if (!blockTerrain.isValidChunkLocation(locationToCheck)) {
                                 RequestChunk requestChunk = new RequestChunk(locationToCheck);
@@ -179,7 +206,7 @@ public class GameClient implements ClientStateListener, MessageListener<Client>{
             }
     }
 
-    void setBlockFinished() {
+    public void setBlockFinished() {
         System.out.println("Finished Chunk");
     }
 

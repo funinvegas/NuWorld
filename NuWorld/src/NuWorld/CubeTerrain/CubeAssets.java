@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package NuWorld;
+package NuWorld.CubeTerrain;
 
 import com.cubes.Block;
 import static com.cubes.Block.Face.Bottom;

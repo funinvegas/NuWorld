@@ -59,7 +59,7 @@ public class Simplex2D implements TerrainGenerator
             //{
                 for (int z = 0 + offset.getZ(); z < offset.getZ() + chunkViewDistance.getZ(); z++)
                 {
-                    Vector3Int chunkLocation = new Vector3Int(x, 0, z);
+                    Vector3Int chunkLocation = Vector3Int.create(x, 0, z);
                     BlockChunkControl c = generateChunk(terrain, chunkLocation, cubeSettings);
                     terrainControl.setChunk(chunkLocation, c);
                 }
@@ -76,15 +76,15 @@ public class Simplex2D implements TerrainGenerator
         int chunkSizeX = settings.getChunkSizeX();
         int chunkSizeY = settings.getChunkSizeY();
         int chunkSizeZ = settings.getChunkSizeZ();
-        Vector3Int offset = chunkLocation.mult(new Vector3Int(chunkSizeX, chunkSizeY, chunkSizeZ));
+        Vector3Int offset = chunkLocation.mult(Vector3Int.create(chunkSizeX, chunkSizeY, chunkSizeZ));
         BlockChunkControl chunk = new BlockChunkControl(terrain, chunkLocation);
         //chunk.setLocation(chunkLocation);
         for (int x = 0; x < chunkSizeX; x++)
         {
             for (int z = 0; z < chunkSizeZ; z++)
             {
-                //chunk.setBlock(new Vector3Int(x, 0, z), CubeAssets.BLOCK_BRICK);
-                //chunk.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_BRICK);
+                //chunk.setBlock(Vector3Int.create(x, 0, z), CubeAssets.BLOCK_BRICK);
+                //chunk.setBlock(Vector3Int.create(0, 0, 0), CubeAssets.BLOCK_BRICK);
                 Double c = sumOctave(TerrainGeneratorFactory.ITERATIONS, x+offset.getX(), z+offset.getZ(), TerrainGeneratorFactory.PERSISTENCE, TerrainGeneratorFactory.SIMPLEX_SCALE);
                 c = normalize(c, 1, 45/*chunkSizeY TODO: Understand this*/ );
                 c -= chunkSizeY * chunkLocation.getY();
@@ -118,7 +118,7 @@ public class Simplex2D implements TerrainGenerator
                         place = Blocks.DIAMOND_ORE;
                     }
                     * */
-                    chunk.setBlock(new Vector3Int(x, y, z), place);
+                    chunk.setBlock(Vector3Int.create(x, y, z), place);
                 }
 /*
                 if(c<water_level) // water

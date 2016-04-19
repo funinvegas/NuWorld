@@ -2,8 +2,11 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package NuWorld;
+package NuWorld.CubeTerrain;
 
+import NuWorld.GameSingletons;
+import NuWorld.NuWorldMain;
+import NuWorld.PlayerEntity;
 import NuWorldServer.Messages.ClearBlock;
 import NuWorldServer.Messages.ResetChunk;
 import NuWorldServer.Messages.SetBlock;
@@ -47,7 +50,7 @@ public class WorldManager {
     // Starting? Terrain size?
     // TODO this doesn't control the terrain size anymore,
     // its now an assumption for setting the player in a good starting spot
-    public final Vector3Int TERRAIN_SIZE = new Vector3Int(100, 30, 100);
+    public final Vector3Int TERRAIN_SIZE = Vector3Int.create(100, 30, 100);
 
     // Physics Engine
     private BulletAppState bulletAppState;
@@ -58,7 +61,7 @@ public class WorldManager {
     // JMonkey node to hold the terrain aka root
     private Node terrainNode = new Node("Cube Terrain");
 
-    private GameSettings gameSettings;
+    private GameSingletons gameSettings;
     
     private final AppStateManager stateManager;
     private final NuWorldMain app;
@@ -79,7 +82,7 @@ public class WorldManager {
         }
         bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
-        //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
+        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-19.8f * gameSettings.getCubesSettings().getBlockSize(),0));
         //bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0,-2f * gameSettings.getCubesSettings().getBlockSize(),0));
         initBlockTerrain();
         
@@ -92,7 +95,7 @@ public class WorldManager {
     private HashMap<Vector3Int, BlockChunkControl> chunksToRender = new HashMap<Vector3Int, BlockChunkControl>();
     private boolean readyToHandleChunks = false;
     private void updateChunk(BlockChunkControl blockChunk) {
-        long startTime = Calendar.getInstance().getTimeInMillis();
+        long startTime = System.currentTimeMillis();
         long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
         RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
@@ -100,34 +103,50 @@ public class WorldManager {
             optimizedGeometry.removeControl(rigidBodyControl);
             bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
         }
-        //if(rigidBodyControl == null){
+        endTime = System.currentTimeMillis();
+        if (endTime - startTime > 5) {
+            System.out.println("removeControl took " + (endTime - startTime));
+        }        //if(rigidBodyControl == null){
         if (optimizedGeometry.getMesh().getVertexCount() > 0) {
             rigidBodyControl = new RigidBodyControl(0);
             optimizedGeometry.addControl(rigidBodyControl);
+            endTime = System.currentTimeMillis();
+            if (endTime - startTime > 5) {
+                System.out.println("addControl took " + (endTime - startTime));
+            }        //if(rigidBodyControl == null){
             bulletAppState.getPhysicsSpace().add(rigidBodyControl);
+            if (endTime - startTime > 5) {
+                System.out.println("getPhysicsSpace.add " + (endTime - startTime));
+            }        //if(rigidBodyControl == null){
             rigidBodyControl.setCollisionShape(new MeshCollisionShape(optimizedGeometry.getMesh()));
+            if (endTime - startTime > 5) {
+                System.out.println("setCollisionShape.add " + (endTime - startTime));
+            }        //if(rigidBodyControl == null){
+            rigidBodyControl.setRestitution(0);
         }
         //}
         //System.err.println("SpatialUpdated terrain is at " + terrainNode.getWorldTranslation().toString());
         //System.err.println("SpatialUpdated player is at " + playerNode.getWorldTranslation().toString());
         //playerControl.warp(new Vector3f(0,0,0));
-        endTime = Calendar.getInstance().getTimeInMillis();
+        endTime = System.currentTimeMillis();
         if (endTime - startTime > 16) {
             System.out.println("updateChunk took " + (endTime - startTime));
         }
     }
     private void removeChunk(BlockChunkControl blockChunk) {
-        long startTime = Calendar.getInstance().getTimeInMillis();
+        long startTime = System.currentTimeMillis();
         long endTime;
         Geometry optimizedGeometry = blockChunk.getOptimizedGeometry_Opaque();
-        RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
-        if (rigidBodyControl != null) {
-            optimizedGeometry.removeControl(rigidBodyControl);
-            bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
-        }
-        endTime = Calendar.getInstance().getTimeInMillis();
-        if (endTime - startTime > 16) {
-            System.out.println("removeChunk took " + (endTime - startTime));
+        if (optimizedGeometry != null) {
+            RigidBodyControl rigidBodyControl = optimizedGeometry.getControl(RigidBodyControl.class);
+            if (rigidBodyControl != null) {
+                optimizedGeometry.removeControl(rigidBodyControl);
+                bulletAppState.getPhysicsSpace().remove(rigidBodyControl);
+            }
+            endTime = System.currentTimeMillis();
+            if (endTime - startTime > 16) {
+                System.out.println("removeChunk took " + (endTime - startTime));
+            }
         }
     }
     public void enableChunks() {
@@ -147,14 +166,14 @@ public class WorldManager {
         
         //To set a block, just specify the location and the block object
         //(Existing blocks will be replaced)
-        //blockTerrain.setBlock(new Vector3Int(0, 0, 0), CubeAssets.BLOCK_WOOD);
-        //blockTerrain.setBlock(new Vector3Int(0, 0, 1), CubeAssets.BLOCK_WOOD);
-        //blockTerrain.setBlock(new Vector3Int(1, 0, 0), CubeAssets.BLOCK_WOOD);
-        //blockTerrain.setBlock(new Vector3Int(1, 0, 1), CubeAssets.BLOCK_STONE);
+        //blockTerrain.setBlock(Vector3Int.create(0, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(Vector3Int.create(0, 0, 1), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(Vector3Int.create(1, 0, 0), CubeAssets.BLOCK_WOOD);
+        //blockTerrain.setBlock(Vector3Int.create(1, 0, 1), CubeAssets.BLOCK_STONE);
         //blockTerrain.setBlock(0, 0, 0, CubeAssets.BLOCK_GRASS); //For the lazy users :P
 
         
-        //blockTerrain.setBlocksFromNoise(new Vector3Int(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
+        //blockTerrain.setBlocksFromNoise(Vector3Int.create(), TERRAIN_SIZE, 0.8f, CubeAssets.BLOCK_GRASS);
         blockTerrain.addChunkListener(new BlockChunkListener(){
             @Override
             public void onSpatialUpdated(BlockChunkControl blockChunk){
@@ -175,7 +194,7 @@ public class WorldManager {
         this.app.getRootNode().attachChild(terrainNode);
     }
 
-    EntityManager getEntityManager() {
+    public EntityManager getEntityManager() {
         return entityManager;
     }
 
@@ -215,37 +234,42 @@ public class WorldManager {
     // TODO Make thread safe
     public void HandleResetChunk(ResetChunk resetChunk) {
         //System.out.println("Client received '" +resetChunk.getChunkData().length +"' from host" );
-        BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(resetChunk.getChunkData()));
         boolean blockFinished = false;
-        try {
-            blockFinished = blockTerrain.readChunkPartial(bitInputStream);
+        for (int i = 0; i < 4; ++i) {
+            byte [] data = resetChunk.getChunkData(i);
+            if (data != null) {
+                BitInputStream bitInputStream = new BitInputStream(new ByteArrayInputStream(data));
+                try {
+                    blockFinished = blockFinished || blockTerrain.readChunkPartial(bitInputStream);
+                    
+                } catch(IOException ex){
+                    ex.printStackTrace();
+                }
+            }
+        }
+            
+        if (blockFinished) {
             if (blockFinished && primaryEntity != null) {
                 app.getGameClient().setBlockFinished();
                 app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
             }
-        } catch(IOException ex){
-            ex.printStackTrace();
-        }
-
-        if (blockFinished) {
             this.app.enqueue(new Callable() {
                 public Object call() throws Exception {
-                    long startTime = Calendar.getInstance().getTimeInMillis();
+                    long startTime = System.currentTimeMillis();
                     long endTime;
 
                     blockTerrain.finishChunks();
 
                    // terrainNode.removeControl(blockTerrain);
-                    long halfTime = Calendar.getInstance().getTimeInMillis();
+                    long halfTime = System.currentTimeMillis();
                     //terrainNode.addControl(blockTerrain);
-                    endTime = Calendar.getInstance().getTimeInMillis();
+                    endTime = System.currentTimeMillis();
                     if (endTime - startTime > 2) {
                         System.out.println("Block Finished took " + (endTime - startTime) + "ms half was " + (halfTime - startTime));
                     }
                     return null;
                 }
-            });
-            
+              });
         }
     }
     
@@ -272,19 +296,19 @@ public class WorldManager {
     
     void addPhysicsControl(AbstractPhysicsControl control) {
         bulletAppState.getPhysicsSpace().add(control);
-        bulletAppState.setDebugEnabled(false);
+        bulletAppState.setDebugEnabled(true);
     }
 
     void addNodeToWorld(Node playerNode) {
         terrainNode.attachChild(playerNode);
     }
 
-    void setPrimaryEntity(PlayerEntity player) {
+    public void setPrimaryEntity(PlayerEntity player) {
         this.primaryEntity = player;
         app.getGameClient().requestNextChunk(blockTerrain, primaryEntity);
     }
     
-    BlockTerrainControl getTerrain() {
+    public BlockTerrainControl getTerrain() {
         return blockTerrain;
     }
 
